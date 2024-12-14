@@ -3,20 +3,39 @@ import SwiftUI
 struct BusinessCardPreview: View {
     let card: BusinessCard
     let showFull: Bool
+    let selectedImage: UIImage?
+    @State private var profileImage: UIImage?
+    @StateObject private var storageService = StorageService()
+    
+    init(card: BusinessCard, showFull: Bool, selectedImage: UIImage? = nil) {
+        self.card = card
+        self.showFull = showFull
+        self.selectedImage = selectedImage
+    }
     
     var body: some View {
         VStack(spacing: 16) {
-            // Profile Image Placeholder
-            Circle()
-                .fill(.white.opacity(0.2))
-                .frame(width: showFull ? 80 : 60, height: showFull ? 80 : 60)
-                .overlay(
-                    Image(systemName: "person.circle.fill")
+            // Profile Image
+            Group {
+                if let image = selectedImage ?? profileImage {
+                    Image(uiImage: image)
                         .resizable()
-                        .foregroundColor(.white)
-                        .padding(showFull ? 16 : 12)
-                )
-                .padding(.bottom, 4)
+                        .scaledToFill()
+                        .frame(width: showFull ? 80 : 60, height: showFull ? 80 : 60)
+                        .clipShape(Circle())
+                } else {
+                    Circle()
+                        .fill(.white.opacity(0.2))
+                        .frame(width: showFull ? 80 : 60, height: showFull ? 80 : 60)
+                        .overlay(
+                            Image(systemName: "person.circle.fill")
+                                .resizable()
+                                .foregroundColor(.white)
+                                .padding(showFull ? 16 : 12)
+                        )
+                }
+            }
+            .padding(.bottom, 4)
             
             VStack(spacing: 4) {
                 Text(card.name)
@@ -67,5 +86,14 @@ struct BusinessCardPreview: View {
         )
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+        .task {
+            if let imageURL = card.profileImageURL {
+                do {
+                    profileImage = try await storageService.loadProfileImage(from: imageURL)
+                } catch {
+                    print("Error loading profile image: \(error.localizedDescription)")
+                }
+            }
+        }
     }
 } 

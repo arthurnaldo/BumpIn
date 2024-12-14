@@ -17,14 +17,20 @@ class BusinessCardService: ObservableObject {
         }
         
         try await db.collection("cards").document(userId).setData(dict)
+        userCard = card
     }
     
     func fetchUserCard(userId: String) async throws -> BusinessCard? {
         let document = try await db.collection("cards").document(userId).getDocument()
-        guard let data = document.data() else { return nil }
+        guard let data = document.data() else { 
+            userCard = nil
+            return nil 
+        }
         
         let jsonData = try JSONSerialization.data(withJSONObject: data)
-        return try JSONDecoder().decode(BusinessCard.self, from: jsonData)
+        let card = try JSONDecoder().decode(BusinessCard.self, from: jsonData)
+        userCard = card
+        return card
     }
     
     func addContact(card: BusinessCard, userId: String) async throws {

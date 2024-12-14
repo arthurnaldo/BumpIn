@@ -9,6 +9,7 @@ struct BusinessCard: Codable, Identifiable {
     var phone: String = ""
     var linkedin: String = ""
     var website: String = ""
+    var profileImageURL: String?
     var colorScheme: CardColorScheme = CardColorScheme()
 }
 

@@ -66,7 +66,7 @@ struct MainView: View {
             Text(errorMessage)
         }
         .sheet(isPresented: $showCreateCard) {
-            CreateCardView()
+            CreateCardView(cardService: cardService)
         }
         .sheet(isPresented: $showCardDetail) {
             if let card = cardService.userCard {
@@ -95,7 +95,7 @@ struct MainView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 25) {
-                    // Header
+                    // Header with welcome and profile
                     HStack {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Welcome Back")
@@ -121,75 +121,120 @@ struct MainView: View {
                     }
                     .padding(.horizontal)
                     
-                    // Quick Actions
-                    VStack(spacing: 15) {
-                        Text("Quick Actions")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal)
-                        
-                        HStack(spacing: 15) {
-                            QuickActionButton(
-                                title: "Create Card",
-                                icon: "square.and.pencil",
-                                color: Color(red: 0.1, green: 0.3, blue: 0.5)
-                            ) {
+                    // Main Create Card Button
+                    Button(action: {
+                        showCreateCard = true
+                    }) {
+                        VStack(spacing: 16) {
+                            Image(systemName: "square.and.pencil")
+                                .font(.system(size: 40))
+                            Text("Create Your Business Card")
+                                .font(.headline)
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 30)
+                        .background(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 0.1, green: 0.3, blue: 0.5),
+                                    Color(red: 0.2, green: 0.4, blue: 0.6)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .cornerRadius(20)
+                        .shadow(color: Color(red: 0.1, green: 0.3, blue: 0.5).opacity(0.3), radius: 10, y: 5)
+                    }
+                    .padding(.horizontal)
+                    
+                    // Secondary Actions
+                    HStack(spacing: 15) {
+                        // Your Card Button
+                        Button(action: {
+                            if cardService.userCard != nil {
+                                showCardDetail = true
+                            } else {
                                 showCreateCard = true
                             }
-                            
-                            QuickActionButton(
-                                title: "Your Card",
-                                icon: "person.text.rectangle",
-                                color: Color(red: 0.2, green: 0.4, blue: 0.6)
-                            ) {
-                                if cardService.userCard != nil {
-                                    showCardDetail = true
-                                } else {
-                                    showCreateCard = true
-                                }
+                        }) {
+                            VStack(spacing: 12) {
+                                Image(systemName: "person.text.rectangle.fill")
+                                    .font(.system(size: 24))
+                                Text("Your Card")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
                             }
-                            
-                            QuickActionButton(
-                                title: "Scan Card",
-                                icon: "qrcode.viewfinder",
-                                color: Color(red: 0.3, green: 0.5, blue: 0.7)
-                            ) {
-                                // TODO: Implement card scanning
-                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 20)
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 0.2, green: 0.4, blue: 0.6),
+                                        Color(red: 0.3, green: 0.5, blue: 0.7)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .cornerRadius(15)
                         }
-                        .padding(.horizontal)
-                    }
-                    
-                    // Recent Contacts
-                    VStack(spacing: 15) {
-                        HStack {
-                            Text("Recent Contacts")
-                                .font(.title2)
-                                .fontWeight(.bold)
-                            Spacer()
-                            Button("See All") {
-                                selectedTab = 1
-                            }
-                            .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
-                        }
-                        .padding(.horizontal)
                         
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 15) {
-                                if cardService.recentContacts.isEmpty {
-                                    Text("No contacts yet")
-                                        .font(.system(.body, design: .rounded))
-                                        .foregroundColor(.gray)
-                                        .frame(maxWidth: .infinity)
-                                        .padding()
-                                } else {
-                                    ForEach(cardService.recentContacts) { contact in
-                                        ContactPreviewCard(card: contact)
-                                    }
+                        // Scan Card Button
+                        Button(action: {
+                            // TODO: Implement scanning
+                        }) {
+                            VStack(spacing: 12) {
+                                Image(systemName: "qrcode.viewfinder")
+                                    .font(.system(size: 24))
+                                Text("Scan Card")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 20)
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 0.3, green: 0.5, blue: 0.7),
+                                        Color(red: 0.4, green: 0.6, blue: 0.8)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .cornerRadius(15)
+                        }
+                    }
+                    .padding(.horizontal)
+                    
+                    // Recent Contacts Section with new design
+                    if !cardService.recentContacts.isEmpty {
+                        VStack(alignment: .leading, spacing: 15) {
+                            HStack {
+                                Text("Recent Contacts")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                Spacer()
+                                Button("See All") {
+                                    selectedTab = 1
                                 }
+                                .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
                             }
                             .padding(.horizontal)
+                            
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 15) {
+                                    ForEach(cardService.recentContacts) { contact in
+                                        ContactPreviewCard(card: contact)
+                                            .shadow(color: .black.opacity(0.1), radius: 5)
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
                         }
                     }
                 }
