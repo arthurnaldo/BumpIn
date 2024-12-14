@@ -66,7 +66,11 @@ struct MainView: View {
             Text(errorMessage)
         }
         .sheet(isPresented: $showCreateCard) {
-            CreateCardView(cardService: cardService)
+            if let existingCard = cardService.userCard {
+                CreateCardView(cardService: cardService, existingCard: existingCard)
+            } else {
+                CreateCardView(cardService: cardService)
+            }
         }
         .sheet(isPresented: $showCardDetail) {
             if let card = cardService.userCard {
@@ -126,9 +130,9 @@ struct MainView: View {
                         showCreateCard = true
                     }) {
                         VStack(spacing: 16) {
-                            Image(systemName: "square.and.pencil")
+                            Image(systemName: cardService.userCard == nil ? "square.and.pencil" : "square.and.pencil.circle.fill")
                                 .font(.system(size: 40))
-                            Text("Create Your Business Card")
+                            Text(cardService.userCard == nil ? "Create Your Business Card" : "Edit Your Business Card")
                                 .font(.headline)
                         }
                         .foregroundColor(.white)
