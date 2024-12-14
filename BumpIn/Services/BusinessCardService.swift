@@ -1,6 +1,7 @@
 import Foundation
 import FirebaseFirestore
 import FirebaseAuth
+import FirebaseStorage
 
 @MainActor
 class BusinessCardService: ObservableObject {
@@ -69,6 +70,50 @@ class BusinessCardService: ObservableObject {
         }
         if let index = recentContacts.firstIndex(where: { $0.id == cardId }) {
             recentContacts.remove(at: index)
+        }
+    }
+    
+    func uploadCardProfilePicture(cardId: String, image: UIImage) async throws -> String {
+        // Check if user is authenticated
+        guard let currentUser = Auth.auth().currentUser else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "User not authenticated"])
+        }
+        
+        print("Authenticated user ID: \(currentUser.uid)")
+        
+        guard let imageData = image.jpegData(compressionQuality: 0.7) else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to convert image to data"])
+        }
+        
+        let storageRef = Storage.storage().reference()
+        let profilePicRef = storageRef.child("card_profile_pictures").child("\(cardId).jpg")
+        
+        print("Attempting to upload to path: \(profilePicRef.fullPath)")
+        
+        let metadata = StorageMetadata()
+        metadata.contentType = "image/jpeg"
+        
+        do {
+            let _ = try await profilePicRef.putDataAsync(imageData, metadata: metadata)
+            let downloadURL = try await profilePicRef.downloadURL()
+            
+            // Update the card document with the profile picture URL on the main actor
+            await MainActor.run {
+                Task {
+                    try? await db.collection("cards").document(cardId).updateData([
+                        "profilePictureURL": downloadURL.absoluteString
+                    ])
+                }
+            }
+            
+            print("Successfully uploaded image to: \(downloadURL.absoluteString)")
+            return downloadURL.absoluteString
+        } catch {
+            print("Storage error: \(error.localizedDescription)")
+            if let nsError = error as NSError? {
+                print("Storage error domain: \(nsError.domain), code: \(nsError.code)")
+            }
+            throw error
         }
     }
 } 

@@ -9,7 +9,8 @@ struct BusinessCard: Codable, Identifiable {
     var phone: String = ""
     var linkedin: String = ""
     var website: String = ""
-    var profileImageURL: String?
+    var aboutMe: String = ""
+    var profilePictureURL: String?
     var colorScheme: CardColorScheme = CardColorScheme()
     var fontStyle: FontStyles = .modern
     var layoutStyle: LayoutStyles = .classic
@@ -173,166 +174,87 @@ enum FontStyles: String, Codable, CaseIterable {
     case contemporary = "Contemporary"
     
     var titleFont: Font {
-        let baseSize: CGFloat = 18
         switch self {
-        case .executive:
-            return .system(size: baseSize, weight: .semibold, design: .serif)
-        case .corporate:
-            return .system(size: baseSize, weight: .medium)
         case .modern:
-            return .system(size: baseSize, weight: .medium, design: .rounded)
+            return .system(size: 20, weight: .medium, design: .rounded)
         case .classic:
-            return .system(size: baseSize, design: .serif)
+            return .system(size: 21, design: .serif)
+        case .executive:
+            return .system(size: 19, weight: .semibold, design: .serif)
+        case .corporate:
+            return .system(size: 19, weight: .medium)
         case .elegant:
-            return .system(size: baseSize, weight: .regular, design: .serif).italic()
+            return .system(size: 20, weight: .regular, design: .serif).italic()
         case .minimalist:
-            return .system(size: baseSize, weight: .light)
+            return .system(size: 18, weight: .light)
         case .bold:
-            return .system(size: baseSize, weight: .bold)
+            return .system(size: 19, weight: .bold)
         case .creative:
-            return .system(size: baseSize, weight: .semibold, design: .rounded)
+            return .system(size: 20, weight: .semibold, design: .rounded)
         case .traditional:
-            return .system(size: baseSize, weight: .medium, design: .serif)
+            return .system(size: 19, weight: .medium, design: .serif)
         case .contemporary:
-            return .system(size: baseSize, weight: .regular, design: .rounded)
+            return .system(size: 19, weight: .regular, design: .rounded)
         }
     }
     
     var bodyFont: Font {
-        let baseSize: CGFloat = 14
         switch self {
-        case .executive:
-            return .system(size: baseSize, design: .serif)
-        case .corporate:
-            return .system(size: baseSize)
         case .modern:
-            return .system(size: baseSize, design: .rounded)
+            return .system(size: 15, design: .rounded)
         case .classic:
-            return .system(size: baseSize, design: .serif)
+            return .system(size: 16, design: .serif)
+        case .executive:
+            return .system(size: 14, design: .serif)
+        case .corporate:
+            return .system(size: 14)
         case .elegant:
-            return .system(size: baseSize, design: .serif).italic()
+            return .system(size: 15, design: .serif).italic()
         case .minimalist:
-            return .system(size: baseSize, weight: .light)
+            return .system(size: 14, weight: .light)
         case .bold:
-            return .system(size: baseSize, weight: .medium)
+            return .system(size: 14, weight: .medium)
         case .creative:
-            return .system(size: baseSize, design: .rounded)
+            return .system(size: 15, design: .rounded)
         case .traditional:
-            return .system(size: baseSize, design: .serif)
+            return .system(size: 14, design: .serif)
         case .contemporary:
-            return .system(size: baseSize, design: .rounded)
+            return .system(size: 14, design: .rounded)
         }
     }
     
     var detailFont: Font {
-        let baseSize: CGFloat = 12
         switch self {
-        case .executive:
-            return .system(size: baseSize, design: .serif)
-        case .corporate:
-            return .system(size: baseSize)
         case .modern:
-            return .system(size: baseSize, design: .rounded)
+            return .system(size: 13, design: .rounded)
         case .classic:
-            return .system(size: baseSize, design: .serif)
-        case .elegant:
-            return .system(size: baseSize, design: .serif).italic()
-        case .minimalist:
-            return .system(size: baseSize, weight: .light)
-        case .bold:
-            return .system(size: baseSize)
-        case .creative:
-            return .system(size: baseSize, design: .rounded)
-        case .traditional:
-            return .system(size: baseSize, design: .serif)
-        case .contemporary:
-            return .system(size: baseSize, design: .rounded)
-        }
-    }
-    
-    func scaledTitleFont(_ scale: CGFloat) -> Font {
-        let baseSize: CGFloat = 18 * scale
-        switch self {
+            return .system(size: 13.5, design: .serif)
         case .executive:
-            return .system(size: baseSize, weight: .semibold, design: .serif)
+            return .system(size: 12, design: .serif)
         case .corporate:
-            return .system(size: baseSize, weight: .medium)
-        case .modern:
-            return .system(size: baseSize, weight: .medium, design: .rounded)
-        case .classic:
-            return .system(size: baseSize, design: .serif)
+            return .system(size: 12)
         case .elegant:
-            return .system(size: baseSize, weight: .regular, design: .serif).italic()
+            return .system(size: 12, design: .serif).italic()
         case .minimalist:
-            return .system(size: baseSize, weight: .light)
+            return .system(size: 12, weight: .light)
         case .bold:
-            return .system(size: baseSize, weight: .bold)
+            return .system(size: 12)
         case .creative:
-            return .system(size: baseSize, weight: .semibold, design: .rounded)
+            return .system(size: 13, design: .rounded)
         case .traditional:
-            return .system(size: baseSize, weight: .medium, design: .serif)
+            return .system(size: 12, design: .serif)
         case .contemporary:
-            return .system(size: baseSize, weight: .regular, design: .rounded)
-        }
-    }
-    
-    func scaledBodyFont(_ scale: CGFloat) -> Font {
-        let baseSize: CGFloat = 14 * scale
-        switch self {
-        case .executive:
-            return .system(size: baseSize, design: .serif)
-        case .corporate:
-            return .system(size: baseSize)
-        case .modern:
-            return .system(size: baseSize, design: .rounded)
-        case .classic:
-            return .system(size: baseSize, design: .serif)
-        case .elegant:
-            return .system(size: baseSize, design: .serif).italic()
-        case .minimalist:
-            return .system(size: baseSize, weight: .light)
-        case .bold:
-            return .system(size: baseSize, weight: .medium)
-        case .creative:
-            return .system(size: baseSize, design: .rounded)
-        case .traditional:
-            return .system(size: baseSize, design: .serif)
-        case .contemporary:
-            return .system(size: baseSize, design: .rounded)
-        }
-    }
-    
-    func scaledDetailFont(_ scale: CGFloat) -> Font {
-        let baseSize: CGFloat = 12 * scale
-        switch self {
-        case .executive:
-            return .system(size: baseSize, design: .serif)
-        case .corporate:
-            return .system(size: baseSize)
-        case .modern:
-            return .system(size: baseSize, design: .rounded)
-        case .classic:
-            return .system(size: baseSize, design: .serif)
-        case .elegant:
-            return .system(size: baseSize, design: .serif).italic()
-        case .minimalist:
-            return .system(size: baseSize, weight: .light)
-        case .bold:
-            return .system(size: baseSize)
-        case .creative:
-            return .system(size: baseSize, design: .rounded)
-        case .traditional:
-            return .system(size: baseSize, design: .serif)
-        case .contemporary:
-            return .system(size: baseSize, design: .rounded)
+            return .system(size: 12, design: .rounded)
         }
     }
     
     var titleSpacing: CGFloat {
         switch self {
+        case .modern: return 4
+        case .classic: return 5
         case .executive, .corporate: return 4
-        case .modern, .contemporary: return 3
-        case .classic, .traditional: return 5
+        case .contemporary: return 3
+        case .traditional: return 5
         case .elegant: return 6
         case .minimalist: return 8
         case .bold: return 3
@@ -342,9 +264,11 @@ enum FontStyles: String, Codable, CaseIterable {
     
     var lineSpacing: CGFloat {
         switch self {
+        case .modern: return 2
+        case .classic: return 3
         case .executive, .corporate: return 2
-        case .modern, .contemporary: return 1
-        case .classic, .traditional: return 3
+        case .contemporary: return 1
+        case .traditional: return 3
         case .elegant: return 4
         case .minimalist: return 6
         case .bold: return 1
@@ -365,9 +289,11 @@ enum FontStyles: String, Codable, CaseIterable {
     
     var letterSpacing: CGFloat {
         switch self {
+        case .modern: return 0.2
+        case .classic: return 0.3
         case .executive, .corporate: return 0.5
-        case .modern, .contemporary: return 0
-        case .classic, .traditional: return 0.3
+        case .contemporary: return 0
+        case .traditional: return 0.3
         case .elegant: return 0.8
         case .minimalist: return 1.2
         case .bold: return 0.4

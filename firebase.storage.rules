@@ -2,9 +2,12 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // WARNING: These rules are for testing only. Do not use in production.
+    match /card_profile_pictures/{filename} {
+      allow read, write: if true;
+    }
+    
     match /{allPaths=**} {
-      allow read, write;
+      allow read, write: if true;
     }
   }
 } 

@@ -1,6 +1,52 @@
 import SwiftUI
 import FirebaseAuth
 
+enum PersonRole: String, CaseIterable {
+    case student = "Student"
+    case professional = "Professional"
+    case retired = "Retired/Non-Working"
+    case jobSeeker = "Job Seeker"
+    
+    var titlePlaceholder: String {
+        switch self {
+        case .student:
+            return "Major/Field of Study"
+        case .professional:
+            return "Job Title"
+        case .retired:
+            return "Former Profession"
+        case .jobSeeker:
+            return "Desired Position"
+        }
+    }
+    
+    var companyPlaceholder: String {
+        switch self {
+        case .student:
+            return "University/School"
+        case .professional:
+            return "Company"
+        case .retired:
+            return "Previous Company"
+        case .jobSeeker:
+            return "Target Industry"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .student:
+            return "graduationcap.fill"
+        case .professional:
+            return "briefcase.fill"
+        case .retired:
+            return "heart.circle.fill"
+        case .jobSeeker:
+            return "person.fill.viewfinder"
+        }
+    }
+}
+
 struct CreateCardView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var authService = AuthenticationService()
@@ -13,6 +59,8 @@ struct CreateCardView: View {
     @State private var showFullPreview = false
     @State private var showImagePicker = false
     @State private var selectedImage: UIImage?
+    @State private var selectedRole: PersonRole = .professional
+    @State private var isUploadingImage = false
     
     init(cardService: BusinessCardService) {
         self._cardService = ObservedObject(wrappedValue: cardService)
@@ -26,37 +74,89 @@ struct CreateCardView: View {
     }
     
     var body: some View {
-        NavigationView {
-            mainContent
-        }
-        .disabled(isLoading)
-        .task {
-            await loadProfileImage()
-        }
-    }
-    
-    private var mainContent: some View {
-        ScrollView {
-            VStack(spacing: 30) {
-                profilePhotoSection
-                formSections
-                cardPreviewSection
-                saveButton
-            }
-            .padding(.bottom, 40)
-        }
-        .background(Color(uiColor: .systemGroupedBackground))
-        .navigationTitle(cardService.userCard == nil ? "Create Business Card" : "Edit Business Card")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button("Cancel") {
-                    dismiss()
+        ZStack {
+            Color(uiColor: .systemGroupedBackground)
+                .ignoresSafeArea()
+            
+            ScrollView {
+                VStack(spacing: 30) {
+                    // Custom Header
+                    HStack {
+                        Button(action: {
+                            dismiss()
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.gray)
+                        }
+                        
+                        Spacer()
+                        
+                        Text(cardService.userCard == nil ? "Create Business Card" : "Edit Business Card")
+                            .font(.headline)
+                            .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
+                        
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+                    .padding(.top)
+                    
+                    // Top Card Preview
+                    cardPreviewSection
+                        .padding(.top, -10)
+                    
+                    // Profile Picture Section
+                    profilePictureSection
+                    
+                    // Form Sections
+                    formSections
+                    
+                    // Bottom Card Preview
+                    cardPreviewSection
+                        .padding(.top, 10)
+                    
+                    // Save Button
+                    Button(action: {
+                        Task {
+                            await saveCard()
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                            Text("Save Card")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(
+                            (isLoading || businessCard.name.isEmpty || businessCard.email.isEmpty) ?
+                            Color.gray :
+                            Color(red: 0.1, green: 0.3, blue: 0.5)
+                        )
+                        .cornerRadius(15)
+                        .shadow(color: .black.opacity(0.1), radius: 5)
+                    }
+                    .disabled(isLoading || businessCard.name.isEmpty || businessCard.email.isEmpty)
+                    .padding(.horizontal)
+                    .padding(.top, 10)
                 }
+                .padding(.bottom, 40)
+            }
+            .background(Color(uiColor: .systemGroupedBackground))
+            
+            if isLoading {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .overlay(
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(1.5)
+                    )
             }
         }
         .sheet(isPresented: $showImagePicker) {
-            ImagePicker(selectedImage: $selectedImage)
+            ImagePicker(image: $selectedImage, sourceType: .photoLibrary)
         }
         .sheet(isPresented: $showFullPreview) {
             CardPreviewSheet(businessCard: businessCard, selectedImage: selectedImage, showFullPreview: $showFullPreview)
@@ -70,57 +170,146 @@ struct CreateCardView: View {
         } message: {
             Text(alertMessage)
         }
+        .task {
+            await loadProfileImage()
+        }
     }
     
-    private var profilePhotoSection: some View {
-        VStack(spacing: 15) {
-            Button(action: {
-                showImagePicker = true
-            }) {
-                ProfilePhotoView(image: selectedImage, colorScheme: businessCard.colorScheme)
+    private var cardPreviewSection: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            HStack {
+                Text("Preview")
+                    .font(.headline)
+                    .foregroundColor(.gray)
+                
+                Spacer()
+                
+                Button(action: {
+                    showFullPreview = true
+                }) {
+                    HStack(spacing: 4) {
+                        Text("View Full")
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    }
+                    .font(.subheadline)
+                    .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
+                }
             }
+            .padding(.horizontal)
             
-            Text(selectedImage == nil ? "Add Profile Photo" : "Change Photo")
-                .font(.headline)
-                .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
+            CardPreviewContainer(businessCard: businessCard, selectedImage: selectedImage)
+                .frame(height: 286)
         }
-        .padding(.top)
+        .padding(.vertical, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 15)
+                .fill(Color.white)
+                .shadow(color: .black.opacity(0.05), radius: 5)
+        )
+        .padding(.horizontal)
     }
     
     private var formSections: some View {
         VStack(spacing: 25) {
+            roleSelector
             personalInfoSection
+            aboutMeSection
             contactInfoSection
             cardDesignSection
         }
         .padding(.horizontal)
     }
     
+    private var roleSelector: some View {
+        FormSection(title: "I am a...") {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 15) {
+                    ForEach(PersonRole.allCases, id: \.self) { role in
+                        Button(action: {
+                            selectedRole = role
+                            // Clear existing title and company when role changes
+                            businessCard.title = ""
+                            businessCard.company = ""
+                        }) {
+                            VStack(spacing: 8) {
+                                Image(systemName: role.icon)
+                                    .font(.system(size: 24))
+                                    .foregroundColor(selectedRole == role ? .white : .gray)
+                                    .frame(width: 50, height: 50)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(selectedRole == role ? 
+                                                Color(red: 0.1, green: 0.3, blue: 0.5) : 
+                                                Color.gray.opacity(0.1))
+                                    )
+                                
+                                Text(role.rawValue)
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.center)
+                                    .frame(width: 80)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 5)
+                .padding(.bottom, 5)
+            }
+        }
+    }
+    
     private var personalInfoSection: some View {
         FormSection(title: "Personal Information") {
-            CustomTextField(icon: "person.fill", placeholder: "Full Name", text: $businessCard.name)
-            CustomTextField(icon: "briefcase.fill", placeholder: "Job Title", text: $businessCard.title)
-            CustomTextField(icon: "building.2.fill", placeholder: "Company", text: $businessCard.company)
+            CustomTextField(icon: "person.fill", placeholder: "Full Name", characterLimit: 50, text: $businessCard.name)
+            CustomTextField(icon: selectedRole.icon, placeholder: selectedRole.titlePlaceholder, characterLimit: 100, text: $businessCard.title)
+            CustomTextField(icon: "building.2.fill", placeholder: selectedRole.companyPlaceholder, characterLimit: 100, text: $businessCard.company)
+        }
+    }
+    
+    private var aboutMeSection: some View {
+        FormSection(title: "About Me") {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Tell others about yourself (180 characters max)")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                
+                TextEditor(text: Binding(
+                    get: { businessCard.aboutMe },
+                    set: { businessCard.aboutMe = String($0.prefix(180)) }
+                ))
+                    .frame(height: 100)
+                    .padding(8)
+                    .background(Color(uiColor: .systemGray6))
+                    .cornerRadius(8)
+                
+                HStack {
+                    Text("\(180 - businessCard.aboutMe.count) characters remaining")
+                        .font(.caption)
+                        .foregroundColor(businessCard.aboutMe.count > 150 ? .orange : .gray)
+                    
+                    Spacer()
+                }
+            }
         }
     }
     
     private var contactInfoSection: some View {
         FormSection(title: "Contact Information") {
-            CustomTextField(icon: "envelope.fill", placeholder: "Email", text: $businessCard.email)
+            CustomTextField(icon: "envelope.fill", placeholder: "Email", characterLimit: 100, text: $businessCard.email)
                 .textContentType(.emailAddress)
                 .keyboardType(.emailAddress)
                 .autocapitalization(.none)
             
-            CustomTextField(icon: "phone.fill", placeholder: "Phone", text: $businessCard.phone)
+            CustomTextField(icon: "phone.fill", placeholder: "Phone", characterLimit: 20, text: $businessCard.phone)
                 .textContentType(.telephoneNumber)
                 .keyboardType(.phonePad)
             
-            CustomTextField(icon: "link", placeholder: "LinkedIn URL", text: $businessCard.linkedin)
+            CustomTextField(icon: "link", placeholder: "LinkedIn URL", characterLimit: 200, text: $businessCard.linkedin)
                 .textContentType(.URL)
                 .keyboardType(.URL)
                 .autocapitalization(.none)
             
-            CustomTextField(icon: "globe", placeholder: "Website", text: $businessCard.website)
+            CustomTextField(icon: "globe", placeholder: "Website", characterLimit: 200, text: $businessCard.website)
                 .textContentType(.URL)
                 .keyboardType(.URL)
                 .autocapitalization(.none)
@@ -145,11 +334,6 @@ struct CreateCardView: View {
                 .padding(.vertical, 10)
             
             backgroundStyleSelector
-            
-            Divider()
-                .padding(.vertical, 10)
-            
-            textScaleSelector
         }
     }
     
@@ -240,92 +424,62 @@ struct CreateCardView: View {
         }
     }
     
-    private var textScaleSelector: some View {
-        VStack(alignment: .leading, spacing: 12) {
+    private var profilePictureSection: some View {
+        Section {
             HStack {
-                Text("Text Size")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                
-                Spacer()
-                
-                Text(String(format: "%.1fx", businessCard.textScale))
-                    .font(.caption)
-                    .foregroundColor(.gray)
-            }
-            
-            Slider(
-                value: $businessCard.textScale,
-                in: 0.8...1.2,
-                step: 0.1
-            )
-            .accentColor(Color(red: 0.1, green: 0.3, blue: 0.5))
-        }
-    }
-    
-    private var cardPreviewSection: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Text("Preview")
-                    .font(.headline)
-                    .foregroundColor(.gray)
-                
-                Spacer()
-                
-                Button("View Full") {
-                    showFullPreview = true
-                }
-                .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
-            }
-            .padding(.horizontal)
-            
-            CardPreviewContainer(businessCard: businessCard, selectedImage: selectedImage)
-        }
-        .padding(.vertical, 10)
-        .background(Color.white)
-        .cornerRadius(15)
-        .shadow(color: .black.opacity(0.05), radius: 5)
-        .padding(.horizontal)
-    }
-    
-    private var saveButton: some View {
-        Button(action: {
-            Task {
-                await saveCard()
-            }
-        }) {
-            HStack {
-                Spacer()
-                if isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                if let image = selectedImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 80, height: 80)
+                        .clipShape(Circle())
+                } else if let url = businessCard.profilePictureURL, let imageURL = URL(string: url) {
+                    AsyncImage(url: imageURL) { image in
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 80, height: 80)
+                            .clipShape(Circle())
+                    } placeholder: {
+                        Circle()
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(width: 80, height: 80)
+                            .overlay(
+                                Image(systemName: "person.crop.circle")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.gray)
+                            )
+                    }
                 } else {
-                    Text("Save Card")
-                        .font(.headline)
-                        .foregroundColor(.white)
+                    Circle()
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(width: 80, height: 80)
+                        .overlay(
+                            Image(systemName: "person.crop.circle")
+                                .font(.system(size: 30))
+                                .foregroundColor(.gray)
+                        )
                 }
-                Spacer()
+                
+                Button(action: { showImagePicker = true }) {
+                    Text(businessCard.profilePictureURL != nil ? "Change Photo" : "Add Photo")
+                        .foregroundColor(.blue)
+                }
+                .disabled(isUploadingImage)
+                
+                if isUploadingImage {
+                    Spacer()
+                    ProgressView()
+                }
             }
-            .padding()
-            .background(
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.1, green: 0.3, blue: 0.5),
-                        Color(red: 0.2, green: 0.4, blue: 0.6)
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
-            .cornerRadius(15)
-            .shadow(color: Color(red: 0.1, green: 0.3, blue: 0.5).opacity(0.3), radius: 5)
+            .padding(.vertical, 8)
+        } header: {
+            Text("Profile Picture")
         }
-        .disabled(isLoading || businessCard.name.isEmpty || businessCard.email.isEmpty)
-        .padding(.horizontal)
     }
     
     private func loadProfileImage() async {
-        if let imageURL = businessCard.profileImageURL {
+        if let imageURL = businessCard.profilePictureURL {
             do {
                 selectedImage = try await storageService.loadProfileImage(from: imageURL)
             } catch {
@@ -350,8 +504,8 @@ struct CreateCardView: View {
         do {
             if let image = selectedImage {
                 do {
-                    let imageURL = try await storageService.uploadProfileImage(image, userId: userId)
-                    businessCard.profileImageURL = imageURL
+                    let url = try await cardService.uploadCardProfilePicture(cardId: businessCard.id, image: image)
+                    businessCard.profilePictureURL = url
                 } catch {
                     await MainActor.run {
                         isLoading = false
@@ -367,14 +521,28 @@ struct CreateCardView: View {
             await MainActor.run {
                 cardService.userCard = businessCard
                 isLoading = false
-                alertMessage = "Card saved successfully!"
-                showAlert = true
+                dismiss()
             }
         } catch {
             await MainActor.run {
                 isLoading = false
                 alertMessage = "Error saving card: \(error.localizedDescription)"
                 showAlert = true
+            }
+        }
+    }
+    
+    private func uploadProfilePicture(_ image: UIImage) {
+        isUploadingImage = true
+        
+        Task {
+            do {
+                let url = try await cardService.uploadCardProfilePicture(cardId: businessCard.id, image: image)
+                businessCard.profilePictureURL = url
+                isUploadingImage = false
+            } catch {
+                print("Failed to upload profile picture: \(error.localizedDescription)")
+                isUploadingImage = false
             }
         }
     }
@@ -415,18 +583,71 @@ struct ProfilePhotoView: View {
 struct CardPreviewContainer: View {
     let businessCard: BusinessCard
     let selectedImage: UIImage?
+    @State private var isFlipped = false
     
     var body: some View {
         GeometryReader { geometry in
-            let containerWidth = geometry.size.width - 32
-            let width = containerWidth
-            let height = width / 1.75 // Standard business card ratio
+            let width = geometry.size.width - 32  // Consistent width for both sides
+            let height = 286.0  // Fixed height to match preview
             
-            BusinessCardPreview(card: businessCard, showFull: false, selectedImage: selectedImage)
-                .frame(width: width, height: height)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ZStack(alignment: .center) {
+                // Front of card
+                BusinessCardPreview(card: businessCard, showFull: false, selectedImage: selectedImage)
+                    .frame(width: width, height: height)
+                    .opacity(isFlipped ? 0 : 1)
+                    .rotation3DEffect(.degrees(isFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0))
+                
+                // Back of card (About Me)
+                if !businessCard.aboutMe.isEmpty {
+                    VStack(spacing: 8) {
+                        Text(businessCard.aboutMe)
+                            .font(businessCard.fontStyle.bodyFont)
+                            .foregroundColor(businessCard.colorScheme.textColor.opacity(0.9))
+                            .lineSpacing(4)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(24)
+                    .frame(width: width, height: height)
+                    .background(businessCard.colorScheme.backgroundView(style: businessCard.backgroundStyle))
+                    .cornerRadius(16)
+                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+                    .opacity(isFlipped ? 1 : 0)
+                    .rotation3DEffect(.degrees(isFlipped ? 0 : -180), axis: (x: 0, y: 1, z: 0))
+                }
+            }
+            .frame(width: geometry.size.width, height: height)
+            .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isFlipped)
+            .onTapGesture {
+                if !businessCard.aboutMe.isEmpty {
+                    withAnimation {
+                        isFlipped.toggle()
+                    }
+                }
+            }
+            
+            // Info indicator
+            if !businessCard.aboutMe.isEmpty && !isFlipped {
+                VStack(alignment: .trailing, spacing: 4) {
+                    Image(systemName: "arrow.2.squarepath")
+                        .foregroundColor(.white)
+                        .font(.system(size: 20))
+                    
+                    Text("Tap to flip")
+                        .font(.caption2)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.black.opacity(0.3))
+                        .cornerRadius(4)
+                }
+                .padding(12)
+                .opacity(0.9)
+                .position(x: width - 50, y: height - 30)
+            }
         }
-        .frame(height: 250)
+        .frame(height: 286)
         .padding(.horizontal)
     }
 }
@@ -438,28 +659,15 @@ struct CardPreviewSheet: View {
     
     var body: some View {
         NavigationView {
-            ScrollView {
-                GeometryReader { geometry in
-                    let containerWidth = geometry.size.width - 32
-                    let width = containerWidth
-                    let height = width / 1.75
-                    
-                    BusinessCardPreview(card: businessCard, showFull: true, selectedImage: selectedImage)
-                        .frame(width: width, height: height)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                .frame(height: UIScreen.main.bounds.height * 0.4)
-                .padding()
-            }
-            .navigationTitle("Card Preview")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        showFullPreview = false
+            CardDetailView(card: businessCard, selectedImage: selectedImage)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Done") {
+                            showFullPreview = false
+                        }
                     }
                 }
-            }
         }
     }
 }
@@ -494,15 +702,30 @@ struct FormSection<Content: View>: View {
 struct CustomTextField: View {
     let icon: String
     let placeholder: String
+    let characterLimit: Int
     @Binding var text: String
     
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
-                .frame(width: 20)
+        VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
+                    .frame(width: 20)
+                
+                TextField(placeholder, text: Binding(
+                    get: { text },
+                    set: { text = String($0.prefix(characterLimit)) }
+                ))
+            }
             
-            TextField(placeholder, text: $text)
+            if text.count > Int(Double(characterLimit) * 0.8) {
+                HStack {
+                    Spacer()
+                    Text("\(characterLimit - text.count) characters remaining")
+                        .font(.caption2)
+                        .foregroundColor(text.count > Int(Double(characterLimit) * 0.9) ? .orange : .gray)
+                }
+            }
         }
     }
 }

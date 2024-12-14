@@ -11,6 +11,9 @@ struct MainView: View {
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var selectedTab = 0
+    @State private var showSettings = false
+    @State private var showImagePicker = false
+    @State private var selectedImage: UIImage?
     
     private func fetchUserCard() {
         guard let userId = authService.user?.uid else { return }
@@ -45,19 +48,25 @@ struct MainView: View {
                 }
                 .tag(0)
             
-            // Contacts Tab
-            contactsView
+            // Cards Tab
+            cardsView
                 .tabItem {
-                    Label("Contacts", systemImage: "person.2.fill")
+                    Label("Cards", systemImage: "rectangle.stack.fill")
                 }
                 .tag(1)
             
-            // Profile Tab
-            profileView
-                .tabItem {
-                    Label("Profile", systemImage: "person.circle.fill")
+            // Edit Card Tab
+            NavigationView {
+                if let existingCard = cardService.userCard {
+                    CreateCardView(cardService: cardService, existingCard: existingCard)
+                } else {
+                    CreateCardView(cardService: cardService)
                 }
-                .tag(2)
+            }
+            .tabItem {
+                Label("Edit Card", systemImage: "pencil.circle.fill")
+            }
+            .tag(2)
         }
         .tint(Color(red: 0.1, green: 0.3, blue: 0.5))
         .alert("Error", isPresented: $showError) {
@@ -65,16 +74,9 @@ struct MainView: View {
         } message: {
             Text(errorMessage)
         }
-        .sheet(isPresented: $showCreateCard) {
-            if let existingCard = cardService.userCard {
-                CreateCardView(cardService: cardService, existingCard: existingCard)
-            } else {
-                CreateCardView(cardService: cardService)
-            }
-        }
         .sheet(isPresented: $showCardDetail) {
             if let card = cardService.userCard {
-                CardDetailView(card: card)
+                CardDetailView(card: card, selectedImage: nil)
             }
         }
         .alert("Sign Out", isPresented: $showSignOutAlert) {
@@ -97,144 +99,167 @@ struct MainView: View {
     
     private var homeView: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 25) {
-                    // Header with welcome and profile
-                    HStack {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Welcome Back")
-                                .font(.title2)
-                                .foregroundColor(.gray)
-                            Text(authService.user?.email ?? "")
-                                .font(.title3)
-                                .fontWeight(.bold)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 24) {
+                    // Header with Settings Popover
+                    HStack(spacing: 16) {
+                        if let card = cardService.userCard {
+                            Text("Welcome, \(card.name.components(separatedBy: " ").first ?? "")")
+                                .font(.system(size: 24, weight: .semibold))
+                        } else {
+                            Text("Welcome")
+                                .font(.system(size: 24, weight: .semibold))
                         }
+                        
                         Spacer()
                         
-                        Button(action: {
-                            showSignOutAlert = true
-                        }) {
-                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                        Button(action: { showSettings = true }) {
+                            Image(systemName: "gearshape.fill")
                                 .font(.system(size: 20))
-                                .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
-                                .padding()
-                                .background(Color.white)
-                                .clipShape(Circle())
-                                .shadow(color: .black.opacity(0.1), radius: 5)
+                                .foregroundColor(.primary)
+                        }
+                        .popover(isPresented: $showSettings) {
+                            VStack(spacing: 16) {
+                                Text("Settings")
+                                    .font(.headline)
+                                    .padding(.top)
+                                
+                                Divider()
+                                
+                                Button(action: { 
+                                    showSettings = false
+                                    showImagePicker = true
+                                }) {
+                                    HStack {
+                                        Image(systemName: "person.crop.circle")
+                                        Text("Change Profile Picture")
+                                    }
+                                    .foregroundColor(.primary)
+                                    .padding(.horizontal)
+                                }
+                                
+                                Button(action: { 
+                                    showSettings = false
+                                    showSignOutAlert = true 
+                                }) {
+                                    HStack {
+                                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                                        Text("Sign Out")
+                                    }
+                                    .foregroundColor(.red)
+                                    .padding(.horizontal)
+                                }
+                                .padding(.bottom)
+                            }
+                            .frame(width: 200)
                         }
                     }
                     .padding(.horizontal)
+                    .padding(.top, 8)
                     
-                    // Main Create Card Button
-                    Button(action: {
-                        showCreateCard = true
-                    }) {
-                        VStack(spacing: 16) {
-                            Image(systemName: cardService.userCard == nil ? "square.and.pencil" : "square.and.pencil.circle.fill")
-                                .font(.system(size: 40))
-                            Text(cardService.userCard == nil ? "Create Your Business Card" : "Edit Your Business Card")
-                                .font(.headline)
+                    // Your Card Section
+                    if let card = cardService.userCard {
+                        VStack(spacing: 0) {
+                            // Card Preview
+                            Button(action: { showCardDetail = true }) {
+                                CardPreviewContainer(businessCard: card, selectedImage: nil)
+                                    .frame(height: 286)
+                            }
+                            
+                            // Quick Actions Bar
+                            HStack(spacing: 30) {
+                                Button(action: { selectedTab = 2 }) {
+                                    VStack(spacing: 6) {
+                                        Image(systemName: "pencil.circle.fill")
+                                            .font(.system(size: 28))
+                                        Text("Edit")
+                                            .font(.system(size: 12, weight: .medium))
+                                    }
+                                }
+                                
+                                Button(action: { /* TODO: Share */ }) {
+                                    VStack(spacing: 6) {
+                                        Image(systemName: "square.and.arrow.up.circle.fill")
+                                            .font(.system(size: 28))
+                                        Text("Share")
+                                            .font(.system(size: 12, weight: .medium))
+                                    }
+                                }
+                                
+                                Button(action: { /* TODO: Implement scanning */ }) {
+                                    VStack(spacing: 6) {
+                                        Image(systemName: "qrcode.viewfinder")
+                                            .font(.system(size: 28))
+                                        Text("Scan")
+                                            .font(.system(size: 12, weight: .medium))
+                                    }
+                                }
+                            }
+                            .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
+                            .padding(.vertical, 16)
                         }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 30)
-                        .background(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 0.1, green: 0.3, blue: 0.5),
-                                    Color(red: 0.2, green: 0.4, blue: 0.6)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .cornerRadius(20)
-                        .shadow(color: Color(red: 0.1, green: 0.3, blue: 0.5).opacity(0.3), radius: 10, y: 5)
-                    }
-                    .padding(.horizontal)
-                    
-                    // Secondary Actions
-                    HStack(spacing: 15) {
-                        // Your Card Button
-                        Button(action: {
-                            if cardService.userCard != nil {
-                                showCardDetail = true
-                            } else {
-                                showCreateCard = true
+                        .background(Color.white)
+                        .cornerRadius(16)
+                        .shadow(color: Color.black.opacity(0.05), radius: 10, y: 2)
+                        .padding(.horizontal)
+                    } else {
+                        // Create First Card Prompt
+                        Button(action: { showCreateCard = true }) {
+                            VStack(spacing: 20) {
+                                Image(systemName: "rectangle.stack.badge.plus")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
+                                
+                                Text("Create Your First Card")
+                                    .font(.system(size: 18, weight: .semibold))
+                                
+                                Text("Start networking by creating your digital business card")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
                             }
-                        }) {
-                            VStack(spacing: 12) {
-                                Image(systemName: "person.text.rectangle.fill")
-                                    .font(.system(size: 24))
-                                Text("Your Card")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                            }
-                            .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 20)
-                            .background(
-                                LinearGradient(
-                                    colors: [
-                                        Color(red: 0.2, green: 0.4, blue: 0.6),
-                                        Color(red: 0.3, green: 0.5, blue: 0.7)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .cornerRadius(15)
+                            .padding(.vertical, 40)
+                            .background(Color.white)
+                            .cornerRadius(16)
+                            .shadow(color: Color.black.opacity(0.05), radius: 10, y: 2)
                         }
-                        
-                        // Scan Card Button
-                        Button(action: {
-                            // TODO: Implement scanning
-                        }) {
-                            VStack(spacing: 12) {
-                                Image(systemName: "qrcode.viewfinder")
-                                    .font(.system(size: 24))
-                                Text("Scan Card")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 20)
-                            .background(
-                                LinearGradient(
-                                    colors: [
-                                        Color(red: 0.3, green: 0.5, blue: 0.7),
-                                        Color(red: 0.4, green: 0.6, blue: 0.8)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .cornerRadius(15)
-                        }
+                        .padding(.horizontal)
+                    }
+                    
+                    // Network Stats
+                    HStack(spacing: 20) {
+                        NetworkStatView(number: cardService.contacts.count, label: "Cards")
+                        NetworkStatView(number: cardService.recentContacts.count, label: "Recent")
+                        NetworkStatView(number: 0, label: "Pending")
                     }
                     .padding(.horizontal)
                     
-                    // Recent Contacts Section with new design
+                    // Recent Cards Section
                     if !cardService.recentContacts.isEmpty {
-                        VStack(alignment: .leading, spacing: 15) {
+                        VStack(alignment: .leading, spacing: 16) {
                             HStack {
-                                Text("Recent Contacts")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
+                                Text("Recent Connections")
+                                    .font(.system(size: 20, weight: .semibold))
                                 Spacer()
-                                Button("See All") {
+                                Button("View All") {
                                     selectedTab = 1
                                 }
+                                .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
                             }
                             .padding(.horizontal)
                             
                             ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 15) {
+                                HStack(spacing: 16) {
                                     ForEach(cardService.recentContacts) { contact in
-                                        ContactPreviewCard(card: contact)
-                                            .shadow(color: .black.opacity(0.1), radius: 5)
+                                        NavigationLink {
+                                            CardDetailView(card: contact, selectedImage: nil)
+                                        } label: {
+                                            HingeStyleCardPreview(card: contact)
+                                                .shadow(color: (cardService.userCard?.colorScheme.primary ?? Color.black).opacity(0.05), radius: 8, y: 2)
+                                        }
                                     }
                                 }
                                 .padding(.horizontal)
@@ -249,11 +274,79 @@ struct MainView: View {
         }
     }
     
-    private var contactsView: some View {
+    private struct NetworkStatView: View {
+        let number: Int
+        let label: String
+        
+        var body: some View {
+            VStack(spacing: 6) {
+                Text("\(number)")
+                    .font(.system(size: 22, weight: .bold))
+                Text(label)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.gray)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(Color.white)
+            .cornerRadius(12)
+            .shadow(color: Color.black.opacity(0.05), radius: 6, y: 2)
+        }
+    }
+    
+    private struct HingeStyleCardPreview: View {
+        let card: BusinessCard
+        
+        var body: some View {
+            VStack(alignment: .leading, spacing: 16) {
+                // Profile Initial with Gradient Background
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(
+                            colors: [card.colorScheme.primary, card.colorScheme.secondary],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                        .frame(width: 70, height: 70)
+                    
+                    Text(card.name.prefix(1))
+                        .font(.system(size: 28, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(card.name)
+                        .font(.system(size: 17, weight: .semibold))
+                        .lineLimit(1)
+                    
+                    if !card.title.isEmpty {
+                        Text(card.title)
+                            .font(.system(size: 14))
+                            .foregroundColor(.gray)
+                            .lineLimit(1)
+                    }
+                    
+                    if !card.company.isEmpty {
+                        Text(card.company)
+                            .font(.system(size: 14))
+                            .foregroundColor(.gray)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            .frame(width: 180)
+            .padding(16)
+            .background(Color.white)
+            .cornerRadius(16)
+            .shadow(color: Color.black.opacity(0.05), radius: 8, y: 2)
+        }
+    }
+    
+    private var cardsView: some View {
         NavigationView {
             List {
                 if cardService.contacts.isEmpty {
-                    Text("No contacts yet")
+                    Text("No cards yet")
                         .font(.system(.body, design: .rounded))
                         .foregroundColor(.gray)
                 } else {
@@ -269,11 +362,13 @@ struct MainView: View {
                                 } label: {
                                     Label("Delete", systemImage: "trash")
                                 }
+                                .tint(.red)
                             }
                     }
                 }
             }
-            .navigationTitle("Contacts")
+            .navigationTitle("Cards")
+            .tint(Color(red: 0.1, green: 0.3, blue: 0.5))
             .refreshable {
                 if let userId = authService.user?.uid {
                     try? await cardService.fetchContacts(userId: userId)
