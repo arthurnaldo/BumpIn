@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseAuth
+import MessageUI
 
 struct MainView: View {
     @Binding var isAuthenticated: Bool
@@ -16,6 +17,10 @@ struct MainView: View {
     @State private var selectedImage: UIImage?
     @State private var isDarkMode = true
     @Namespace private var themeAnimation
+    @State private var showingMessageComposer = false
+    @State private var showingShareFallback = false
+    @State private var shareText = ""
+    @StateObject private var sharingService = CardSharingService(cardService: BusinessCardService())
     
     private func fetchUserCard() {
         guard let userId = authService.user?.uid else { return }
@@ -38,6 +43,16 @@ struct MainView: View {
                     showError = true
                 }
             }
+        }
+    }
+    
+    private func handleMessageShare(card: BusinessCard) {
+        if MFMessageComposeViewController.canSendText() {
+            showingMessageComposer = true
+        } else {
+            // Fallback for simulator or when messages are not available
+            shareText = sharingService.generateShareText(from: card)
+            showingShareFallback = true
         }
     }
     
@@ -74,7 +89,7 @@ struct MainView: View {
             ShareCardView()
                 .environmentObject(cardService)
                 .tabItem {
-                    Label("Share Card", systemImage: "square.and.arrow.up.fill")
+                    Label("Share", systemImage: "square.and.arrow.up.fill")
                 }
                 .tag(3)
         }
@@ -106,6 +121,19 @@ struct MainView: View {
         }
         .onAppear {
             fetchUserCard()
+        }
+        .sheet(isPresented: $showingMessageComposer) {
+            if let card = cardService.userCard {
+                MessageComposerView(messageText: sharingService.generateShareText(from: card))
+            }
+        }
+        .alert("Share Card", isPresented: $showingShareFallback) {
+            Button("Copy to Clipboard") {
+                UIPasteboard.general.string = shareText
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Messages are not available on this device. You can copy the share text to clipboard instead.")
         }
     }
     
@@ -226,13 +254,26 @@ struct MainView: View {
                             }
                             
                             // Quick Actions Bar
-                            HStack(spacing: 30) {
+                            HStack(spacing: 40) {
                                 Button(action: { selectedTab = 2 }) {
                                     VStack(spacing: 6) {
                                         Image(systemName: "pencil.circle.fill")
                                             .font(.system(size: 28))
+                                            .foregroundColor(card.colorScheme.primary)
                                         Text("Edit")
                                             .font(.system(size: 12, weight: .medium))
+                                            .foregroundColor(card.colorScheme.primary)
+                                    }
+                                }
+                                
+                                Button(action: { handleMessageShare(card: card) }) {
+                                    VStack(spacing: 6) {
+                                        Image(systemName: "message.circle.fill")
+                                            .font(.system(size: 28))
+                                            .foregroundColor(card.colorScheme.primary)
+                                        Text("Message")
+                                            .font(.system(size: 12, weight: .medium))
+                                            .foregroundColor(card.colorScheme.primary)
                                     }
                                 }
                                 
@@ -240,15 +281,18 @@ struct MainView: View {
                                     VStack(spacing: 6) {
                                         Image(systemName: "square.and.arrow.up.circle.fill")
                                             .font(.system(size: 28))
-                                        Text("Share & Scan")
+                                            .foregroundColor(card.colorScheme.primary)
+                                        Text("Share")
                                             .font(.system(size: 12, weight: .medium))
+                                            .foregroundColor(card.colorScheme.primary)
                                     }
                                 }
                             }
-                            .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
-                            .padding(.vertical, 16)
+                            .padding(.vertical, 20)
+                            .frame(maxWidth: .infinity)
+                            .background(isDarkMode ? Color(uiColor: .systemGray6) : .white)
                         }
-                        .background(Color.white)
+                        .background(isDarkMode ? Color(uiColor: .systemGray6) : .white)
                         .cornerRadius(16)
                         .shadow(color: Color.black.opacity(0.05), radius: 10, y: 2)
                         .padding(.horizontal)

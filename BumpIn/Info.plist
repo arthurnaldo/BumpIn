@@ -2,22 +2,37 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>NFCReaderUsageDescription</key>
-    <string>We need to use NFC to share business cards between devices</string>
-    <key>NSCameraUsageDescription</key>
-    <string>We need camera access to scan QR codes</string>
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>We need photo library access to save and share QR codes</string>
-    <key>com.apple.developer.nfc.readersession.formats</key>
+    <key>CFBundleURLTypes</key>
     <array>
-        <string>NDEF</string>
+        <dict>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>bumpin</string>
+            </array>
+            <key>CFBundleURLName</key>
+            <string>com.bumpin.app</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLIconFile</key>
+            <string>Icon</string>
+        </dict>
     </array>
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>bumpin</string>
+    </array>
+    <key>CFBundleDisplayName</key>
+    <string>BumpIn</string>
+    <key>NSCameraUsageDescription</key>
+    <string>We need access to your camera to scan QR codes and take profile pictures.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>We need access to your photo library to select profile pictures.</string>
+    <key>NFCReaderUsageDescription</key>
+    <string>We use NFC to share business cards between devices.</string>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>
         <false/>
-        <key>UISceneConfigurations</key>
-        <dict/>
     </dict>
 </dict>
 </plist> 
