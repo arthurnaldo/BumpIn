@@ -61,6 +61,7 @@ struct CreateCardView: View {
     @State private var selectedImage: UIImage?
     @State private var selectedRole: PersonRole = .professional
     @State private var isUploadingImage = false
+    @State private var showEmoticonPicker = false
     
     init(cardService: BusinessCardService) {
         self._cardService = ObservedObject(wrappedValue: cardService)
@@ -261,7 +262,11 @@ struct CreateCardView: View {
     private var personalInfoSection: some View {
         FormSection(title: "Personal Information") {
             CustomTextField(icon: "person.fill", placeholder: "Full Name", characterLimit: 50, text: $businessCard.name)
-            CustomTextField(icon: selectedRole.icon, placeholder: selectedRole.titlePlaceholder, characterLimit: 100, text: $businessCard.title)
+            
+            HStack {
+                CustomTextField(icon: selectedRole.icon, placeholder: selectedRole.titlePlaceholder, characterLimit: 100, text: $businessCard.title)
+            }
+            
             CustomTextField(icon: "building.2.fill", placeholder: selectedRole.companyPlaceholder, characterLimit: 100, text: $businessCard.company)
         }
     }
@@ -318,6 +323,11 @@ struct CreateCardView: View {
     
     private var cardDesignSection: some View {
         FormSection(title: "Card Design") {
+            symbolToggle
+            
+            Divider()
+                .padding(.vertical, 10)
+            
             colorSchemeSelector
             
             Divider()
@@ -334,6 +344,19 @@ struct CreateCardView: View {
                 .padding(.vertical, 10)
             
             backgroundStyleSelector
+        }
+    }
+    
+    private var symbolToggle: some View {
+        HStack {
+            Text("Show Symbols")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+            
+            Spacer()
+            
+            Toggle("", isOn: $businessCard.showSymbols)
+                .labelsHidden()
         }
     }
     
@@ -588,7 +611,7 @@ struct CardPreviewContainer: View {
     var body: some View {
         GeometryReader { geometry in
             let width = geometry.size.width - 32  // Consistent width for both sides
-            let height = 286.0  // Fixed height to match preview
+            let height = 200.0  // Fixed height to match preview
             
             ZStack(alignment: .center) {
                 // Front of card
@@ -647,7 +670,7 @@ struct CardPreviewContainer: View {
                 .position(x: width - 50, y: height - 30)
             }
         }
-        .frame(height: 286)
+        .frame(height: 200)
         .padding(.horizontal)
     }
 }
@@ -833,16 +856,16 @@ struct BackgroundStyleButton: View {
         Button(action: action) {
             VStack(spacing: 8) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: 10)
                         .fill(Color.white)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 50, height: 50)
                     
                     colorScheme.backgroundView(style: style)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .frame(width: 40, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .frame(width: 50, height: 50)
                 }
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: 10)
                         .strokeBorder(isSelected ? Color(red: 0.1, green: 0.3, blue: 0.5) : Color.clear, lineWidth: 3)
                 )
                 .shadow(color: .black.opacity(0.1), radius: 3)
@@ -850,10 +873,70 @@ struct BackgroundStyleButton: View {
                 Text(style.rawValue)
                     .font(.caption)
                     .foregroundColor(.gray)
-                    .lineLimit(2)
                     .multilineTextAlignment(.center)
-                    .frame(width: 60)
+                    .frame(width: 60, height: 30)
             }
+        }
+    }
+}
+
+struct EmoticonRow: View {
+    let title: String
+    @Binding var emoticon: String
+    
+    private let emoticonOptions: [[String]] = [
+        ["👤", "👨", "👩", "🧑"],
+        ["💼", "📊", "💡", "🎯"],
+        ["🏢", "🏗️", "🏪", "🏬"],
+        ["✉️", "📨", "📩", "📤"],
+        ["📞", "☎️", "📱", "📲"],
+        ["🔗", "📎", "🌐", "💻"],
+        ["🌐", "🔍", "🌍", "🌎"],
+        ["📝", "📄", "📋", "📌"]
+    ]
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(.gray)
+                .frame(width: 80, alignment: .leading)
+            
+            Menu {
+                ForEach(getEmoticonOptions(), id: \.self) { option in
+                    Button(action: {
+                        emoticon = option
+                    }) {
+                        Text(option)
+                    }
+                }
+            } label: {
+                HStack {
+                    Text(emoticon)
+                        .font(.system(size: 20))
+                    Image(systemName: "chevron.down")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+                .frame(width: 60)
+                .padding(.vertical, 4)
+                .background(Color(uiColor: .systemGray6))
+                .cornerRadius(8)
+            }
+        }
+    }
+    
+    private func getEmoticonOptions() -> [String] {
+        switch title {
+        case "Name": return emoticonOptions[0]
+        case "Title": return emoticonOptions[1]
+        case "Company": return emoticonOptions[2]
+        case "Email": return emoticonOptions[3]
+        case "Phone": return emoticonOptions[4]
+        case "LinkedIn": return emoticonOptions[5]
+        case "Website": return emoticonOptions[6]
+        case "About Me": return emoticonOptions[7]
+        default: return emoticonOptions[0]
         }
     }
 } 

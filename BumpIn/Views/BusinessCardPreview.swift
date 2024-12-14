@@ -35,9 +35,9 @@ struct BusinessCardPreview: View {
             }
             .transition(.opacity.combined(with: .scale))
         }
-        .padding(showFull ? 30 : 20)
+        .padding(showFull ? 24 : 16)
         .frame(maxWidth: .infinity)
-        .frame(height: showFull ? nil : 286)
+        .frame(height: showFull ? nil : 200)
         .background(card.colorScheme.backgroundView(style: card.backgroundStyle))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
@@ -79,56 +79,114 @@ struct BusinessCardPreview: View {
         }
     }
     
+    private var nameText: some View {
+        HStack(spacing: 4) {
+            if card.showSymbols {
+                Image(systemName: CardSymbols.name)
+                    .font(.system(size: 12))
+                    .foregroundColor(card.colorScheme.textColor.opacity(0.8))
+            }
+            Text(card.name)
+                .font(card.fontStyle.titleFont)
+                .foregroundColor(card.colorScheme.textColor)
+                .textCase(card.fontStyle.textCase)
+                .tracking(card.fontStyle.letterSpacing)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+        }
+    }
+    
+    private var titleText: some View {
+        HStack(spacing: 4) {
+            if card.showSymbols {
+                Image(systemName: CardSymbols.title)
+                    .font(.system(size: 12))
+                    .foregroundColor(card.colorScheme.textColor.opacity(0.8))
+            }
+            Text(card.title)
+                .font(card.fontStyle.bodyFont)
+                .foregroundColor(card.colorScheme.textColor.opacity(0.9))
+                .textCase(card.fontStyle.textCase)
+                .tracking(card.fontStyle.letterSpacing)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+        }
+    }
+    
+    private var companyText: some View {
+        HStack(spacing: 4) {
+            if card.showSymbols {
+                Image(systemName: CardSymbols.company)
+                    .font(.system(size: 12))
+                    .foregroundColor(card.colorScheme.textColor.opacity(0.8))
+            }
+            Text(card.company)
+                .font(card.fontStyle.bodyFont)
+                .foregroundColor(card.colorScheme.textColor.opacity(0.9))
+                .textCase(card.fontStyle.textCase)
+                .tracking(card.fontStyle.letterSpacing)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+        }
+    }
+    
+    private func contactRow(icon: String, text: String) -> some View {
+        HStack(spacing: 4) {
+            if card.showSymbols {
+                Image(systemName: icon)
+                    .font(.system(size: 12))
+                    .foregroundColor(card.colorScheme.textColor.opacity(0.8))
+            }
+            Text(text)
+                .font(card.fontStyle.detailFont)
+                .foregroundColor(card.colorScheme.textColor.opacity(0.9))
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+        }
+    }
+    
     private var classicLayout: some View {
-        VStack(spacing: showFull ? 16 : 12) {
-            profileImageView
-                .padding(.bottom, 4)
+        VStack {
+            Spacer(minLength: 0)
             
-            VStack(spacing: 6) {
-                Text(card.name)
-                    .font(card.fontStyle.titleFont)
-                    .foregroundColor(card.colorScheme.textColor)
-                    .textCase(card.fontStyle.textCase)
-                    .tracking(card.fontStyle.letterSpacing)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+            profileImageView
+                .padding(.bottom, 2)
+            
+            VStack(spacing: 4) {
+                nameText
+                    .padding(.horizontal)
                 
                 if !card.company.isEmpty {
-                    Text(card.company)
-                        .font(card.fontStyle.bodyFont)
-                        .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                        .textCase(card.fontStyle.textCase)
-                        .tracking(card.fontStyle.letterSpacing)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                    companyText
+                        .padding(.horizontal)
                 }
                 
                 if !card.title.isEmpty {
-                    Text(card.title)
-                        .font(card.fontStyle.bodyFont)
-                        .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                        .textCase(card.fontStyle.textCase)
-                        .tracking(card.fontStyle.letterSpacing)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                    titleText
+                        .padding(.horizontal)
                 }
             }
-            .padding(.bottom, 8)
+            .padding(.vertical, 4)
             
-            VStack(spacing: showFull ? 8 : 6) {
+            Spacer(minLength: 0)
+            
+            VStack(spacing: 4) {
                 if !card.email.isEmpty {
-                    ContactRow(icon: "envelope.fill", text: card.email, colorScheme: card.colorScheme)
+                    contactRow(icon: CardSymbols.email, text: card.email)
                 }
                 if !card.phone.isEmpty {
-                    ContactRow(icon: "phone.fill", text: card.phone, colorScheme: card.colorScheme)
+                    contactRow(icon: CardSymbols.phone, text: card.phone)
                 }
                 if !card.linkedin.isEmpty {
-                    ContactRow(icon: "link", text: card.linkedin, colorScheme: card.colorScheme)
+                    contactRow(icon: CardSymbols.linkedin, text: card.linkedin)
                 }
                 if !card.website.isEmpty {
-                    ContactRow(icon: "globe", text: card.website, colorScheme: card.colorScheme)
+                    contactRow(icon: CardSymbols.website, text: card.website)
                 }
             }
+            .padding(.horizontal)
+            
+            Spacer(minLength: 0)
         }
     }
     
@@ -137,362 +195,265 @@ struct BusinessCardPreview: View {
             profileImageView
             
             VStack(alignment: .leading, spacing: 8) {
-                Text(card.name)
-                    .font(card.fontStyle.titleFont)
-                    .foregroundColor(card.colorScheme.textColor)
-                    .textCase(card.fontStyle.textCase)
-                    .tracking(card.fontStyle.letterSpacing)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                nameText
                 
                 if !card.company.isEmpty {
-                    Text(card.company)
-                        .font(card.fontStyle.bodyFont)
-                        .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                        .textCase(card.fontStyle.textCase)
-                        .tracking(card.fontStyle.letterSpacing)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                    companyText
                 }
                 
                 if !card.title.isEmpty {
-                    Text(card.title)
-                        .font(card.fontStyle.bodyFont)
-                        .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                        .textCase(card.fontStyle.textCase)
-                        .tracking(card.fontStyle.letterSpacing)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                    titleText
                 }
                 
                 Divider()
                     .background(card.colorScheme.textColor.opacity(0.5))
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 4)
                 
-                VStack(alignment: .leading, spacing: showFull ? 8 : 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     if !card.email.isEmpty {
-                        ContactRow(icon: "envelope.fill", text: card.email, colorScheme: card.colorScheme)
+                        contactRow(icon: CardSymbols.email, text: card.email)
                     }
                     if !card.phone.isEmpty {
-                        ContactRow(icon: "phone.fill", text: card.phone, colorScheme: card.colorScheme)
+                        contactRow(icon: CardSymbols.phone, text: card.phone)
                     }
                     if !card.linkedin.isEmpty {
-                        ContactRow(icon: "link", text: card.linkedin, colorScheme: card.colorScheme)
+                        contactRow(icon: CardSymbols.linkedin, text: card.linkedin)
                     }
                     if !card.website.isEmpty {
-                        ContactRow(icon: "globe", text: card.website, colorScheme: card.colorScheme)
+                        contactRow(icon: CardSymbols.website, text: card.website)
                     }
                 }
             }
         }
+        .padding(.horizontal)
     }
     
     private var compactLayout: some View {
         HStack(spacing: showFull ? 15 : 10) {
             profileImageView
             
-            VStack(alignment: .leading, spacing: showFull ? 4 : 2) {
-                Text(card.name)
-                    .font(card.fontStyle.titleFont)
-                    .foregroundColor(card.colorScheme.textColor)
-                    .textCase(card.fontStyle.textCase)
-                    .tracking(card.fontStyle.letterSpacing)
-                    .padding(.bottom, card.fontStyle.titleSpacing)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+            VStack(alignment: .leading, spacing: 4) {
+                nameText
                 
                 if !card.title.isEmpty {
-                    Text(card.title)
-                        .font(card.fontStyle.bodyFont)
-                        .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                        .textCase(card.fontStyle.textCase)
-                        .tracking(card.fontStyle.letterSpacing)
-                        .lineSpacing(card.fontStyle.lineSpacing)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                    titleText
                 }
                 
                 if !card.company.isEmpty {
-                    Text(card.company)
+                    companyText
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    if !card.email.isEmpty {
+                        contactRow(icon: CardSymbols.email, text: card.email)
+                    }
+                    if !card.phone.isEmpty {
+                        contactRow(icon: CardSymbols.phone, text: card.phone)
+                    }
+                    if !card.linkedin.isEmpty {
+                        contactRow(icon: CardSymbols.linkedin, text: card.linkedin)
+                    }
+                    if !card.website.isEmpty {
+                        contactRow(icon: CardSymbols.website, text: card.website)
+                    }
+                }
+                .padding(.top, 2)
+            }
+        }
+        .padding(.horizontal)
+    }
+    
+    private var centeredLayout: some View {
+        VStack {
+            Spacer(minLength: 0)
+            
+            nameText
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            
+            profileImageView
+                .padding(.vertical, 4)
+            
+            if !card.title.isEmpty || !card.company.isEmpty {
+                HStack(spacing: 4) {
+                    if card.showSymbols {
+                        Image(systemName: CardSymbols.company)
+                            .font(.system(size: 12))
+                            .foregroundColor(card.colorScheme.textColor.opacity(0.8))
+                    }
+                    Text([card.title, card.company].filter { !$0.isEmpty }.joined(separator: " • "))
                         .font(card.fontStyle.bodyFont)
                         .foregroundColor(card.colorScheme.textColor.opacity(0.9))
                         .textCase(card.fontStyle.textCase)
                         .tracking(card.fontStyle.letterSpacing)
                         .lineSpacing(card.fontStyle.lineSpacing)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.5)
                 }
-                
-                VStack(alignment: .leading, spacing: showFull ? 4 : 2) {
-                    if !card.email.isEmpty {
-                        Text(card.email)
-                            .font(card.fontStyle.detailFont)
-                            .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                    }
-                    if !card.phone.isEmpty {
-                        Text(card.phone)
-                            .font(card.fontStyle.detailFont)
-                            .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                    }
-                    if !card.linkedin.isEmpty {
-                        Text(card.linkedin)
-                            .font(card.fontStyle.detailFont)
-                            .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                    }
-                    if !card.website.isEmpty {
-                        Text(card.website)
-                            .font(card.fontStyle.detailFont)
-                            .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                    }
-                }
-                .padding(.top, showFull ? 4 : 2)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
             }
-        }
-    }
-    
-    private var centeredLayout: some View {
-        VStack(spacing: showFull ? 15 : 8) {
-            profileImageView
             
-            Text(card.name)
-                .font(card.fontStyle.titleFont)
-                .foregroundColor(card.colorScheme.textColor)
-                .textCase(card.fontStyle.textCase)
-                .tracking(card.fontStyle.letterSpacing)
-                .padding(.bottom, card.fontStyle.titleSpacing)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            
-            if !card.title.isEmpty || !card.company.isEmpty {
-                Text([card.title, card.company].filter { !$0.isEmpty }.joined(separator: " • "))
-                    .font(card.fontStyle.bodyFont)
-                    .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                    .textCase(card.fontStyle.textCase)
-                    .tracking(card.fontStyle.letterSpacing)
-                    .lineSpacing(card.fontStyle.lineSpacing)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .multilineTextAlignment(.center)
-            }
+            Spacer(minLength: 0)
             
             Divider()
                 .background(card.colorScheme.textColor.opacity(0.5))
                 .padding(.horizontal)
             
-            VStack(spacing: showFull ? 8 : 4) {
+            VStack(spacing: 4) {
                 if !card.email.isEmpty {
-                    Text(card.email)
-                        .font(card.fontStyle.detailFont)
-                        .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                    contactRow(icon: CardSymbols.email, text: card.email)
                 }
                 if !card.phone.isEmpty {
-                    Text(card.phone)
-                        .font(card.fontStyle.detailFont)
-                        .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                    contactRow(icon: CardSymbols.phone, text: card.phone)
                 }
                 if !card.linkedin.isEmpty {
-                    Text(card.linkedin)
-                        .font(card.fontStyle.detailFont)
-                        .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                    contactRow(icon: CardSymbols.linkedin, text: card.linkedin)
                 }
                 if !card.website.isEmpty {
-                    Text(card.website)
-                        .font(card.fontStyle.detailFont)
-                        .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                    contactRow(icon: CardSymbols.website, text: card.website)
                 }
             }
+            .padding(.horizontal)
+            
+            Spacer(minLength: 0)
         }
     }
     
     private var minimalLayout: some View {
-        VStack(alignment: .leading, spacing: showFull ? 15 : 8) {
-            Text(card.name)
-                .font(card.fontStyle.titleFont)
-                .foregroundColor(card.colorScheme.textColor)
-                .textCase(card.fontStyle.textCase)
-                .tracking(card.fontStyle.letterSpacing)
-                .padding(.bottom, card.fontStyle.titleSpacing)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+        VStack(alignment: .leading, spacing: 8) {
+            nameText
             
             Divider()
                 .background(card.colorScheme.textColor.opacity(0.5))
             
             if !card.title.isEmpty || !card.company.isEmpty {
-                Text([card.title, card.company].filter { !$0.isEmpty }.joined(separator: " • "))
-                    .font(card.fontStyle.bodyFont)
-                    .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                    .textCase(card.fontStyle.textCase)
-                    .tracking(card.fontStyle.letterSpacing)
-                    .lineSpacing(card.fontStyle.lineSpacing)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                HStack(spacing: 4) {
+                    if card.showSymbols {
+                        Image(systemName: CardSymbols.company)
+                            .font(.system(size: 12))
+                            .foregroundColor(card.colorScheme.textColor.opacity(0.8))
+                    }
+                    Text([card.title, card.company].filter { !$0.isEmpty }.joined(separator: " • "))
+                        .font(card.fontStyle.bodyFont)
+                        .foregroundColor(card.colorScheme.textColor.opacity(0.9))
+                        .textCase(card.fontStyle.textCase)
+                        .tracking(card.fontStyle.letterSpacing)
+                        .lineSpacing(card.fontStyle.lineSpacing)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                }
             }
             
-            VStack(alignment: .leading, spacing: showFull ? 4 : 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 if !card.email.isEmpty {
-                    Text(card.email)
-                        .font(card.fontStyle.detailFont)
-                        .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                    contactRow(icon: CardSymbols.email, text: card.email)
                 }
                 if !card.phone.isEmpty {
-                    Text(card.phone)
-                        .font(card.fontStyle.detailFont)
-                        .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                    contactRow(icon: CardSymbols.phone, text: card.phone)
                 }
                 if !card.linkedin.isEmpty {
-                    Text(card.linkedin)
-                        .font(card.fontStyle.detailFont)
-                        .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                    contactRow(icon: CardSymbols.linkedin, text: card.linkedin)
                 }
                 if !card.website.isEmpty {
-                    Text(card.website)
-                        .font(card.fontStyle.detailFont)
-                        .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                    contactRow(icon: CardSymbols.website, text: card.website)
                 }
             }
         }
+        .padding(.horizontal)
     }
     
     private var elegantLayout: some View {
-        VStack(spacing: showFull ? 16 : 12) {
-            Text(card.name)
-                .font(card.fontStyle.titleFont)
-                .foregroundColor(card.colorScheme.textColor)
-                .textCase(card.fontStyle.textCase)
-                .tracking(card.fontStyle.letterSpacing)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+        VStack {
+            Spacer(minLength: 0)
+            
+            nameText
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
             
             profileImageView
-                .padding(.vertical, 8)
+                .padding(.vertical, 4)
             
             if !card.company.isEmpty || !card.title.isEmpty {
-                VStack(spacing: 4) {
+                VStack(spacing: 2) {
                     if !card.company.isEmpty {
-                        Text(card.company)
-                            .font(card.fontStyle.bodyFont)
-                            .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                            .textCase(card.fontStyle.textCase)
-                            .tracking(card.fontStyle.letterSpacing)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                        companyText
+                            .padding(.horizontal)
                     }
                     if !card.title.isEmpty {
-                        Text(card.title)
-                            .font(card.fontStyle.bodyFont)
-                            .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                            .textCase(card.fontStyle.textCase)
-                            .tracking(card.fontStyle.letterSpacing)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                        titleText
+                            .padding(.horizontal)
                     }
                 }
                 .multilineTextAlignment(.center)
             }
             
+            Spacer(minLength: 0)
+            
             Divider()
                 .background(card.colorScheme.textColor.opacity(0.5))
                 .padding(.horizontal)
-                .padding(.vertical, 6)
             
-            VStack(spacing: showFull ? 8 : 6) {
+            VStack(spacing: 4) {
                 if !card.email.isEmpty {
-                    ContactRow(icon: "envelope.fill", text: card.email, colorScheme: card.colorScheme)
+                    contactRow(icon: CardSymbols.email, text: card.email)
                 }
                 if !card.phone.isEmpty {
-                    ContactRow(icon: "phone.fill", text: card.phone, colorScheme: card.colorScheme)
+                    contactRow(icon: CardSymbols.phone, text: card.phone)
                 }
                 if !card.linkedin.isEmpty {
-                    ContactRow(icon: "link", text: card.linkedin, colorScheme: card.colorScheme)
+                    contactRow(icon: CardSymbols.linkedin, text: card.linkedin)
                 }
                 if !card.website.isEmpty {
-                    ContactRow(icon: "globe", text: card.website, colorScheme: card.colorScheme)
+                    contactRow(icon: CardSymbols.website, text: card.website)
                 }
             }
+            .padding(.horizontal)
+            
+            Spacer(minLength: 0)
         }
     }
     
     private var professionalLayout: some View {
         HStack(spacing: showFull ? 20 : 16) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(card.name)
-                    .font(card.fontStyle.titleFont)
-                    .foregroundColor(card.colorScheme.textColor)
-                    .textCase(card.fontStyle.textCase)
-                    .tracking(card.fontStyle.letterSpacing)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+            VStack(alignment: .leading, spacing: 8) {
+                nameText
                 
                 if !card.company.isEmpty || !card.title.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
                         if !card.company.isEmpty {
-                            Text(card.company)
-                                .font(card.fontStyle.bodyFont)
-                                .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                                .textCase(card.fontStyle.textCase)
-                                .tracking(card.fontStyle.letterSpacing)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
+                            companyText
                         }
                         if !card.title.isEmpty {
-                            Text(card.title)
-                                .font(card.fontStyle.bodyFont)
-                                .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                                .textCase(card.fontStyle.textCase)
-                                .tracking(card.fontStyle.letterSpacing)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
+                            titleText
                         }
                     }
                 }
                 
                 Divider()
                     .background(card.colorScheme.textColor.opacity(0.5))
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 4)
                 
-                VStack(alignment: .leading, spacing: showFull ? 8 : 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     if !card.email.isEmpty {
-                        ContactRow(icon: "envelope.fill", text: card.email, colorScheme: card.colorScheme)
+                        contactRow(icon: CardSymbols.email, text: card.email)
                     }
                     if !card.phone.isEmpty {
-                        ContactRow(icon: "phone.fill", text: card.phone, colorScheme: card.colorScheme)
+                        contactRow(icon: CardSymbols.phone, text: card.phone)
                     }
                     if !card.linkedin.isEmpty {
-                        ContactRow(icon: "link", text: card.linkedin, colorScheme: card.colorScheme)
+                        contactRow(icon: CardSymbols.linkedin, text: card.linkedin)
                     }
                     if !card.website.isEmpty {
-                        ContactRow(icon: "globe", text: card.website, colorScheme: card.colorScheme)
+                        contactRow(icon: CardSymbols.website, text: card.website)
                     }
                 }
             }
+            .padding(.horizontal)
             
             Spacer(minLength: 0)
             profileImageView
+                .padding(.trailing)
         }
     }
 } 

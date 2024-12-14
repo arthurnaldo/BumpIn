@@ -16,6 +16,7 @@ struct BusinessCard: Codable, Identifiable {
     var layoutStyle: LayoutStyles = .classic
     var textScale: CGFloat = 1.0
     var backgroundStyle: BackgroundStyle = .gradient
+    var showSymbols: Bool = false
 }
 
 struct CardColorScheme: Codable, Equatable {
@@ -23,9 +24,10 @@ struct CardColorScheme: Codable, Equatable {
     var secondary: Color = Color(red: 0.2, green: 0.4, blue: 0.6)
     var textColor: Color = .white
     var accentColor: Color = .white.opacity(0.8)
+    var emoticon: String = "💫"
     
     private enum CodingKeys: String, CodingKey {
-        case primary, secondary, textColor, accentColor
+        case primary, secondary, textColor, accentColor, emoticon
     }
     
     init() {
@@ -33,40 +35,15 @@ struct CardColorScheme: Codable, Equatable {
         self.secondary = Color(red: 0.2, green: 0.4, blue: 0.6)
         self.textColor = .white
         self.accentColor = .white.opacity(0.8)
+        self.emoticon = "💫"
     }
     
-    init(primary: Color, secondary: Color, textColor: Color = .white, accentColor: Color = .white.opacity(0.8)) {
+    init(primary: Color, secondary: Color, textColor: Color = .white, accentColor: Color = .white.opacity(0.8), emoticon: String = "💫") {
         self.primary = primary
         self.secondary = secondary
         self.textColor = textColor
         self.accentColor = accentColor
-    }
-    
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let primaryComponents = try container.decode([Double].self, forKey: .primary)
-        let secondaryComponents = try container.decode([Double].self, forKey: .secondary)
-        let textComponents = try container.decode([Double].self, forKey: .textColor)
-        let accentComponents = try container.decode([Double].self, forKey: .accentColor)
-        
-        self.primary = Color(red: primaryComponents[0], green: primaryComponents[1], blue: primaryComponents[2])
-        self.secondary = Color(red: secondaryComponents[0], green: secondaryComponents[1], blue: secondaryComponents[2])
-        self.textColor = Color(red: textComponents[0], green: textComponents[1], blue: textComponents[2])
-        self.accentColor = Color(red: accentComponents[0], green: accentComponents[1], blue: accentComponents[2])
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        let primaryComponents = UIColor(self.primary).cgColor.components ?? [0, 0, 0]
-        let secondaryComponents = UIColor(self.secondary).cgColor.components ?? [0, 0, 0]
-        let textComponents = UIColor(self.textColor).cgColor.components ?? [1, 1, 1]
-        let accentComponents = UIColor(self.accentColor).cgColor.components ?? [1, 1, 1]
-        
-        try container.encode([primaryComponents[0], primaryComponents[1], primaryComponents[2]], forKey: .primary)
-        try container.encode([secondaryComponents[0], secondaryComponents[1], secondaryComponents[2]], forKey: .secondary)
-        try container.encode([textComponents[0], textComponents[1], textComponents[2]], forKey: .textColor)
-        try container.encode([accentComponents[0], accentComponents[1], accentComponents[2]], forKey: .accentColor)
+        self.emoticon = emoticon
     }
     
     func backgroundView(style: BackgroundStyle) -> some View {
@@ -95,7 +72,61 @@ struct CardColorScheme: Codable, Equatable {
                     secondary
                 }
             )
+        case .emoticonPattern:
+            return AnyView(
+                ZStack {
+                    LinearGradient(
+                        colors: [primary, secondary],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    GeometryReader { geometry in
+                        let columns = Int(geometry.size.width / 40)
+                        let rows = Int(geometry.size.height / 40)
+                        ForEach(0..<rows, id: \.self) { row in
+                            ForEach(0..<columns, id: \.self) { column in
+                                Text(emoticon)
+                                    .font(.system(size: 20))
+                                    .opacity(0.1)
+                                    .position(
+                                        x: CGFloat(column) * 40 + 20,
+                                        y: CGFloat(row) * 40 + 20
+                                    )
+                            }
+                        }
+                    }
+                }
+            )
         }
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let primaryComponents = try container.decode([Double].self, forKey: .primary)
+        let secondaryComponents = try container.decode([Double].self, forKey: .secondary)
+        let textComponents = try container.decode([Double].self, forKey: .textColor)
+        let accentComponents = try container.decode([Double].self, forKey: .accentColor)
+        self.emoticon = try container.decode(String.self, forKey: .emoticon)
+        
+        self.primary = Color(red: primaryComponents[0], green: primaryComponents[1], blue: primaryComponents[2])
+        self.secondary = Color(red: secondaryComponents[0], green: secondaryComponents[1], blue: secondaryComponents[2])
+        self.textColor = Color(red: textComponents[0], green: textComponents[1], blue: textComponents[2])
+        self.accentColor = Color(red: accentComponents[0], green: accentComponents[1], blue: accentComponents[2])
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        let primaryComponents = UIColor(self.primary).cgColor.components ?? [0, 0, 0]
+        let secondaryComponents = UIColor(self.secondary).cgColor.components ?? [0, 0, 0]
+        let textComponents = UIColor(self.textColor).cgColor.components ?? [1, 1, 1]
+        let accentComponents = UIColor(self.accentColor).cgColor.components ?? [1, 1, 1]
+        
+        try container.encode([primaryComponents[0], primaryComponents[1], primaryComponents[2]], forKey: .primary)
+        try container.encode([secondaryComponents[0], secondaryComponents[1], secondaryComponents[2]], forKey: .secondary)
+        try container.encode([textComponents[0], textComponents[1], textComponents[2]], forKey: .textColor)
+        try container.encode([accentComponents[0], accentComponents[1], accentComponents[2]], forKey: .accentColor)
+        try container.encode(emoticon, forKey: .emoticon)
     }
 }
 
@@ -176,75 +207,75 @@ enum FontStyles: String, Codable, CaseIterable {
     var titleFont: Font {
         switch self {
         case .modern:
-            return .system(size: 20, weight: .medium, design: .rounded)
+            return .system(size: 18, weight: .medium, design: .rounded)
         case .classic:
-            return .system(size: 21, design: .serif)
+            return .system(size: 18, design: .serif)
         case .executive:
-            return .system(size: 19, weight: .semibold, design: .serif)
+            return .system(size: 18, weight: .semibold, design: .serif)
         case .corporate:
-            return .system(size: 19, weight: .medium)
+            return .system(size: 18, weight: .medium)
         case .elegant:
-            return .system(size: 20, weight: .regular, design: .serif).italic()
+            return .system(size: 18, weight: .regular, design: .serif).italic()
         case .minimalist:
             return .system(size: 18, weight: .light)
         case .bold:
-            return .system(size: 19, weight: .bold)
+            return .system(size: 18, weight: .bold)
         case .creative:
-            return .system(size: 20, weight: .semibold, design: .rounded)
+            return .system(size: 18, weight: .semibold, design: .rounded)
         case .traditional:
-            return .system(size: 19, weight: .medium, design: .serif)
+            return .system(size: 18, weight: .medium, design: .serif)
         case .contemporary:
-            return .system(size: 19, weight: .regular, design: .rounded)
+            return .system(size: 18, weight: .regular, design: .rounded)
         }
     }
     
     var bodyFont: Font {
         switch self {
         case .modern:
-            return .system(size: 15, design: .rounded)
+            return .system(size: 11, design: .rounded)
         case .classic:
-            return .system(size: 16, design: .serif)
+            return .system(size: 11, design: .serif)
         case .executive:
-            return .system(size: 14, design: .serif)
+            return .system(size: 11, design: .serif)
         case .corporate:
-            return .system(size: 14)
+            return .system(size: 11)
         case .elegant:
-            return .system(size: 15, design: .serif).italic()
+            return .system(size: 11, design: .serif).italic()
         case .minimalist:
-            return .system(size: 14, weight: .light)
+            return .system(size: 11, weight: .light)
         case .bold:
-            return .system(size: 14, weight: .medium)
+            return .system(size: 11, weight: .medium)
         case .creative:
-            return .system(size: 15, design: .rounded)
+            return .system(size: 11, design: .rounded)
         case .traditional:
-            return .system(size: 14, design: .serif)
+            return .system(size: 11, design: .serif)
         case .contemporary:
-            return .system(size: 14, design: .rounded)
+            return .system(size: 11, design: .rounded)
         }
     }
     
     var detailFont: Font {
         switch self {
         case .modern:
-            return .system(size: 13, design: .rounded)
+            return .system(size: 10, design: .rounded)
         case .classic:
-            return .system(size: 13.5, design: .serif)
+            return .system(size: 10, design: .serif)
         case .executive:
-            return .system(size: 12, design: .serif)
+            return .system(size: 9, design: .serif)
         case .corporate:
-            return .system(size: 12)
+            return .system(size: 9)
         case .elegant:
-            return .system(size: 12, design: .serif).italic()
+            return .system(size: 9, design: .serif).italic()
         case .minimalist:
-            return .system(size: 12, weight: .light)
+            return .system(size: 9, weight: .light)
         case .bold:
-            return .system(size: 12)
+            return .system(size: 9)
         case .creative:
-            return .system(size: 13, design: .rounded)
+            return .system(size: 10, design: .rounded)
         case .traditional:
-            return .system(size: 12, design: .serif)
+            return .system(size: 9, design: .serif)
         case .contemporary:
-            return .system(size: 12, design: .rounded)
+            return .system(size: 9, design: .rounded)
         }
     }
     
@@ -317,4 +348,16 @@ enum BackgroundStyle: String, Codable, CaseIterable {
     case gradient = "Gradient"
     case horizontalSplit = "Horizontal Split"
     case verticalSplit = "Vertical Split"
+    case emoticonPattern = "Emoticon Pattern"
+}
+
+struct CardSymbols {
+    static let name = "person.fill"
+    static let title = "briefcase.fill"
+    static let company = "building.2.fill"
+    static let email = "envelope.fill"
+    static let phone = "phone.fill"
+    static let linkedin = "link"
+    static let website = "globe"
+    static let aboutMe = "text.justify"
 } 
