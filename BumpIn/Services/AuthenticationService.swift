@@ -6,8 +6,12 @@ class AuthenticationService: ObservableObject {
     @Published var errorMessage = ""
     
     init() {
+        print("AuthenticationService: Initializing")
         self.user = Auth.auth().currentUser
+        print("AuthenticationService: Initial user - \(self.user?.uid ?? "nil")")
+        
         Auth.auth().addStateDidChangeListener { [weak self] _, user in
+            print("AuthenticationService: Auth state changed - User: \(user?.uid ?? "nil")")
             DispatchQueue.main.async {
                 self?.user = user
             }
@@ -15,6 +19,7 @@ class AuthenticationService: ObservableObject {
     }
     
     func signOut() throws {
+        print("AuthenticationService: Signing out")
         try Auth.auth().signOut()
     }
 } 

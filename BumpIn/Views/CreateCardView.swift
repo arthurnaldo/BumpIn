@@ -82,25 +82,11 @@ struct CreateCardView: View {
             ScrollView {
                 VStack(spacing: 30) {
                     // Custom Header
-                    HStack {
-                        Button(action: {
-                            dismiss()
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.gray)
-                        }
-                        
-                        Spacer()
-                        
-                        Text(cardService.userCard == nil ? "Create Business Card" : "Edit Business Card")
-                            .font(.headline)
-                            .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
-                        
-                        Spacer()
-                    }
-                    .padding(.horizontal)
-                    .padding(.top)
+                    Text(cardService.userCard == nil ? "Create Business Card" : "Edit Business Card")
+                        .font(.title2.bold())
+                        .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
+                        .frame(maxWidth: .infinity)
+                        .padding(.top)
                     
                     // Top Card Preview
                     cardPreviewSection
@@ -276,21 +262,25 @@ struct CreateCardView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Tell others about yourself (180 characters max)")
                     .font(.subheadline)
-                    .foregroundColor(.gray)
+                    .foregroundColor(.secondary)
                 
                 TextEditor(text: Binding(
                     get: { businessCard.aboutMe },
                     set: { businessCard.aboutMe = String($0.prefix(180)) }
                 ))
-                    .frame(height: 100)
-                    .padding(8)
-                    .background(Color(uiColor: .systemGray6))
-                    .cornerRadius(8)
+                .frame(height: 100)
+                .padding(8)
+                .background(Color(uiColor: .systemBackground))
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                )
                 
                 HStack {
                     Text("\(180 - businessCard.aboutMe.count) characters remaining")
                         .font(.caption)
-                        .foregroundColor(businessCard.aboutMe.count > 150 ? .orange : .gray)
+                        .foregroundColor(businessCard.aboutMe.count > 150 ? .orange : .secondary)
                     
                     Spacer()
                 }
@@ -681,17 +671,34 @@ struct CardPreviewSheet: View {
     @Binding var showFullPreview: Bool
     
     var body: some View {
-        NavigationView {
-            CardDetailView(card: businessCard, selectedImage: selectedImage)
+        GeometryReader { geometry in
+            NavigationView {
+                ZStack {
+                    Color.black
+                        .ignoresSafeArea()
+                    
+                    BusinessCardPreview(card: businessCard, showFull: true, selectedImage: selectedImage)
+                        .frame(
+                            width: businessCard.isVertical ? min(geometry.size.width * 0.8, 400) : min(geometry.size.width * 0.9, 600),
+                            height: businessCard.isVertical ? min(geometry.size.height * 0.7, 600) : min(geometry.size.height * 0.5, 300)
+                        )
+                        .rotation3DEffect(
+                            .degrees(businessCard.isVertical ? 90 : 0),
+                            axis: (x: 0, y: 0, z: 1)
+                        )
+                }
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button("Done") {
                             showFullPreview = false
                         }
+                        .foregroundColor(.white)
                     }
                 }
+            }
         }
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -699,6 +706,7 @@ struct CardPreviewSheet: View {
 struct FormSection<Content: View>: View {
     let title: String
     let content: () -> Content
+    @Environment(\.colorScheme) var colorScheme
     
     init(title: String, @ViewBuilder content: @escaping () -> Content) {
         self.title = title
@@ -709,13 +717,13 @@ struct FormSection<Content: View>: View {
         VStack(alignment: .leading, spacing: 15) {
             Text(title)
                 .font(.headline)
-                .foregroundColor(.gray)
+                .foregroundColor(.secondary)
             
             VStack(spacing: 15) {
                 content()
             }
             .padding()
-            .background(Color.white)
+            .background(colorScheme == .dark ? Color(uiColor: .systemGray6) : .white)
             .cornerRadius(15)
             .shadow(color: .black.opacity(0.05), radius: 5)
         }
@@ -727,6 +735,7 @@ struct CustomTextField: View {
     let placeholder: String
     let characterLimit: Int
     @Binding var text: String
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         VStack(spacing: 8) {
@@ -739,6 +748,11 @@ struct CustomTextField: View {
                     get: { text },
                     set: { text = String($0.prefix(characterLimit)) }
                 ))
+                .textFieldStyle(PlainTextFieldStyle())
+                .foregroundColor(colorScheme == .dark ? .white : .primary)
+                .padding(8)
+                .background(colorScheme == .dark ? Color.gray.opacity(0.3) : Color(uiColor: .systemGray6))
+                .cornerRadius(8)
             }
             
             if text.count > Int(Double(characterLimit) * 0.8) {
@@ -746,7 +760,7 @@ struct CustomTextField: View {
                     Spacer()
                     Text("\(characterLimit - text.count) characters remaining")
                         .font(.caption2)
-                        .foregroundColor(text.count > Int(Double(characterLimit) * 0.9) ? .orange : .gray)
+                        .foregroundColor(text.count > Int(Double(characterLimit) * 0.9) ? .orange : .secondary)
                 }
             }
         }

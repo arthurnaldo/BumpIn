@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NFCReaderUsageDescription</key>
+    <string>We need to use NFC to share business cards between devices</string>
+    <key>NSCameraUsageDescription</key>
+    <string>We need camera access to scan QR codes</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>We need photo library access to save and share QR codes</string>
+    <key>com.apple.developer.nfc.readersession.formats</key>
+    <array>
+        <string>NDEF</string>
+    </array>
+    <key>UIApplicationSceneManifest</key>
+    <dict>
+        <key>UIApplicationSupportsMultipleScenes</key>
+        <false/>
+        <key>UISceneConfigurations</key>
+        <dict/>
+    </dict>
+</dict>
+</plist> 

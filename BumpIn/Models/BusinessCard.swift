@@ -17,6 +17,7 @@ struct BusinessCard: Codable, Identifiable {
     var textScale: CGFloat = 1.0
     var backgroundStyle: BackgroundStyle = .gradient
     var showSymbols: Bool = false
+    var isVertical: Bool = false
 }
 
 struct CardColorScheme: Codable, Equatable {

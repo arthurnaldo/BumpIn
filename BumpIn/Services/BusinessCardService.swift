@@ -2,6 +2,7 @@ import Foundation
 import FirebaseFirestore
 import FirebaseAuth
 import FirebaseStorage
+import UIKit
 
 @MainActor
 class BusinessCardService: ObservableObject {
@@ -55,6 +56,19 @@ class BusinessCardService: ObservableObject {
         
         contacts = fetchedContacts
         recentContacts = Array(fetchedContacts.prefix(3))
+    }
+    
+    func addCard(_ card: BusinessCard) async throws {
+        guard let currentUser = Auth.auth().currentUser else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "User not authenticated"])
+        }
+        
+        try await addContact(card: card, userId: currentUser.uid)
+        contacts.append(card)
+        if recentContacts.count >= 3 {
+            recentContacts.removeLast()
+        }
+        recentContacts.insert(card, at: 0)
     }
     
     func removeContact(cardId: String, userId: String) async throws {

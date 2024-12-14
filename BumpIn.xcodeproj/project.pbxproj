@@ -38,9 +38,22 @@
 		8EB8D7592D0D878100084D9B /* BumpInUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BumpInUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		8EB8D7DC2D0DFBD800084D9B /* Exceptions for "BumpIn" folder in "BumpIn" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 8EB8D73E2D0D878000084D9B /* BumpIn */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		8EB8D7412D0D878000084D9B /* BumpIn */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				8EB8D7DC2D0DFBD800084D9B /* Exceptions for "BumpIn" folder in "BumpIn" target */,
+			);
 			path = BumpIn;
 			sourceTree = "<group>";
 		};
@@ -422,6 +435,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"BumpIn/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BumpIn/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -450,6 +464,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"BumpIn/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BumpIn/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

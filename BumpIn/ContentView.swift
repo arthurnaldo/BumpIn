@@ -10,21 +10,29 @@ import FirebaseAuth
 import FirebaseFirestore
 
 struct ContentView: View {
-    @State private var isAuthenticated = false
+    @StateObject private var authService = AuthenticationService()
+    @State private var isLoading = true
     
     var body: some View {
-        if isAuthenticated {
-            MainView(isAuthenticated: $isAuthenticated)
-        } else {
-            LoginView(isAuthenticated: $isAuthenticated)
+        Group {
+            if isLoading {
+                ProgressView("Loading...")
+                    .scaleEffect(1.5)
+            } else if let user = authService.user {
+                MainView(isAuthenticated: .constant(true))
+                    .environmentObject(authService)
+            } else {
+                LoginView(isAuthenticated: .constant(false))
+                    .environmentObject(authService)
+            }
+        }
+        .onAppear {
+            // Check auth state immediately
+            isLoading = false
         }
     }
 }
 
-#if DEBUG
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-    }
+#Preview {
+    ContentView()
 }
-#endif
