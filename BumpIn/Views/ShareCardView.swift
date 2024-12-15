@@ -12,6 +12,7 @@ struct ShareCardView: View {
     @State private var showingMessageComposer = false
     @State private var showingShareFallback = false
     @State private var shareText = ""
+    @State private var isFlipped = false
     
     init() {
         _sharingService = StateObject(wrappedValue: CardSharingService(cardService: BusinessCardService()))
@@ -88,9 +89,13 @@ struct ShareCardView: View {
                                 
                                 Spacer()
                                 
-                                // Text Message Share Button
-                                Button(action: { handleMessageShare(card: card) }) {
-                                    Image(systemName: "message.fill")
+                                // Copy Link Button
+                                Button(action: {
+                                    if let card = cardService.userCard {
+                                        sharingService.copyLinkToClipboard(for: card)
+                                    }
+                                }) {
+                                    Image(systemName: "link.circle.fill")
                                         .font(.system(size: 18))
                                         .foregroundColor(.white)
                                         .padding(12)
@@ -98,6 +103,18 @@ struct ShareCardView: View {
                                         .clipShape(Circle())
                                 }
                                 .padding(.horizontal, 8)
+                                .overlay {
+                                    if sharingService.showCopyConfirmation {
+                                        Text("Link copied!")
+                                            .font(.caption)
+                                            .foregroundColor(.white)
+                                            .padding(6)
+                                            .background(Color.black.opacity(0.7))
+                                            .cornerRadius(4)
+                                            .offset(y: 30)
+                                            .transition(.opacity)
+                                    }
+                                }
                                 
                                 // Orientation Toggle Button
                                 Button(action: {
@@ -151,22 +168,17 @@ struct ShareCardView: View {
                             
                             // About Me View
                             if interactionState == 1 && !isVertical {
-                                VStack(spacing: 20) {
+                                VStack(spacing: 8) {
                                     Text(card.aboutMe)
-                                        .font(.headline)
-                                        .foregroundColor(.white)
-                                        .multilineTextAlignment(.center)
-                                        .padding()
+                                        .font(card.fontStyle.bodyFont)
+                                        .foregroundColor(card.colorScheme.textColor.opacity(0.9))
+                                        .lineSpacing(4)
+                                        .multilineTextAlignment(.leading)
+                                        .padding(24)
                                 }
                                 .frame(width: size.width, height: size.height)
-                                .background(
-                                    LinearGradient(
-                                        colors: [card.colorScheme.primary, card.colorScheme.secondary],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .cornerRadius(15)
+                                .background(card.colorScheme.backgroundView(style: card.backgroundStyle))
+                                .cornerRadius(16)
                             }
                             
                             // QR Code View

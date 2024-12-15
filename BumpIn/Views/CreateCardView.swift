@@ -84,7 +84,7 @@ struct CreateCardView: View {
                     // Custom Header
                     Text(cardService.userCard == nil ? "Create Business Card" : "Edit Business Card")
                         .font(.title2.bold())
-                        .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
+                        .foregroundColor(.primary)
                         .frame(maxWidth: .infinity)
                         .padding(.top)
                     
@@ -188,11 +188,9 @@ struct CreateCardView: View {
                 .frame(height: 286)
         }
         .padding(.vertical, 20)
-        .background(
-            RoundedRectangle(cornerRadius: 15)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.05), radius: 5)
-        )
+        .background(Color(uiColor: .systemGray6))
+        .cornerRadius(15)
+        .shadow(color: .black.opacity(0.05), radius: 5)
         .padding(.horizontal)
     }
     
@@ -686,6 +684,11 @@ struct CardPreviewSheet: View {
                             .degrees(businessCard.isVertical ? 90 : 0),
                             axis: (x: 0, y: 0, z: 1)
                         )
+                        .background(
+                            businessCard.colorScheme.backgroundView(style: businessCard.backgroundStyle)
+                        )
+                        .cornerRadius(15)
+                        .environment(\.colorScheme, .light)
                 }
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {

@@ -13,13 +13,16 @@ class BusinessCardService: ObservableObject {
     private let db = Firestore.firestore()
     
     func saveCard(_ card: BusinessCard, userId: String) async throws {
-        let data = try JSONEncoder().encode(card)
+        var updatedCard = card
+        updatedCard.userId = userId
+        
+        let data = try JSONEncoder().encode(updatedCard)
         guard let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode card"])
         }
         
         try await db.collection("cards").document(userId).setData(dict)
-        userCard = card
+        userCard = updatedCard
     }
     
     func fetchUserCard(userId: String) async throws -> BusinessCard? {

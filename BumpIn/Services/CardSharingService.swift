@@ -8,6 +8,7 @@ class CardSharingService: NSObject, ObservableObject {
     @Published var isScanning = false
     @Published var error: Error?
     @Published var showShareSheet = false
+    @Published var showCopyConfirmation = false
     
     private var session: NFCNDEFReaderSession?
     private var cardService: BusinessCardService
@@ -45,75 +46,35 @@ class CardSharingService: NSObject, ObservableObject {
     func processSharedCardURL(_ url: URL) {
         print("Processing URL: \(url)")
         
-        // Extract card ID from URL
-        let urlString = url.absoluteString
-        guard let cardId = urlString.components(separatedBy: "/").last else {
+        guard let cardId = url.absoluteString.components(separatedBy: "/").last else {
             print("Could not extract card ID from URL")
             return
         }
         
-        print("Found card ID: \(cardId)")
-        
-        // Create a task to fetch the card
         Task {
             do {
-                print("Fetching card from Firestore...")
-                
-                // Add retry logic for network issues
-                var attempts = 0
-                let maxAttempts = 3
-                
-                while attempts < maxAttempts {
-                    do {
-                        let snapshot = try await db.collection("cards").document(cardId).getDocument()
-                        guard let data = snapshot.data() else {
-                            print("No data found for card ID: \(cardId)")
-                            return
-                        }
-                        
-                        print("Card data found, decoding...")
-                        let jsonData = try JSONSerialization.data(withJSONObject: data)
-                        let card = try JSONDecoder().decode(BusinessCard.self, from: jsonData)
-                        print("Successfully decoded card for: \(card.name)")
-                        
-                        // Post notification with the card
-                        DispatchQueue.main.async {
-                            print("Posting CardFound notification")
-                            NotificationCenter.default.post(
-                                name: Notification.Name("CardFound"),
-                                object: nil,
-                                userInfo: ["card": card]
-                            )
-                        }
-                        return
-                    } catch {
-                        attempts += 1
-                        if attempts >= maxAttempts {
-                            print("Final error processing card after \(maxAttempts) attempts: \(error.localizedDescription)")
-                            // Show error to user
-                            DispatchQueue.main.async {
-                                self.error = error
-                                NotificationCenter.default.post(
-                                    name: Notification.Name("CardError"),
-                                    object: nil,
-                                    userInfo: ["error": "Failed to load card. Please try again."]
-                                )
-                            }
-                        } else {
-                            print("Attempt \(attempts) failed, retrying...")
-                            try await Task.sleep(nanoseconds: UInt64(1_000_000_000)) // Wait 1 second before retry
-                        }
+                try await retryOperation {
+                    let snapshot = try await self.db.collection("cards").document(cardId).getDocument()
+                    guard let data = snapshot.data() else {
+                        throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No data found"])
                     }
+                    
+                    let jsonData = try JSONSerialization.data(withJSONObject: data)
+                    let card = try JSONDecoder().decode(BusinessCard.self, from: jsonData)
+                    
+                    DispatchQueue.main.async {
+                        NotificationCenter.default.post(
+                            name: Notification.Name("CardFound"),
+                            object: nil,
+                            userInfo: ["card": card]
+                        )
+                    }
+                    return card
                 }
             } catch {
-                print("Error in card processing task: \(error.localizedDescription)")
+                print("Error processing card: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self.error = error
-                    NotificationCenter.default.post(
-                        name: Notification.Name("CardError"),
-                        object: nil,
-                        userInfo: ["error": "Failed to process card. Please check your internet connection and try again."]
-                    )
                 }
             }
         }
@@ -194,6 +155,42 @@ class CardSharingService: NSObject, ObservableObject {
                 }
             }
         }
+    }
+    
+    func generateShareableLink(for card: BusinessCard) -> String {
+        return "bumpin://add-card/\(card.id)"
+    }
+    
+    func copyLinkToClipboard(for card: BusinessCard) {
+        let link = generateShareableLink(for: card)
+        UIPasteboard.general.string = link
+        showCopyConfirmation = true
+        
+        // Hide confirmation after 2 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            self.showCopyConfirmation = false
+        }
+    }
+    
+    private func retryOperation<T>(
+        maxAttempts: Int = 3,
+        delay: TimeInterval = 1.0,
+        operation: @escaping () async throws -> T
+    ) async throws -> T {
+        var lastError: Error?
+        
+        for attempt in 0..<maxAttempts {
+            do {
+                return try await operation()
+            } catch {
+                lastError = error
+                if attempt < maxAttempts - 1 {
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                }
+            }
+        }
+        
+        throw lastError ?? NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Operation failed after multiple attempts"])
     }
 }
 

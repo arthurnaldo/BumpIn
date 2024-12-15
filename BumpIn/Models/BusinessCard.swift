@@ -1,23 +1,64 @@
 import SwiftUI
 
 struct BusinessCard: Codable, Identifiable {
-    var id: String = UUID().uuidString
-    var name: String = ""
-    var title: String = ""
-    var company: String = ""
-    var email: String = ""
-    var phone: String = ""
-    var linkedin: String = ""
-    var website: String = ""
-    var aboutMe: String = ""
+    var id: String
+    var userId: String
+    var name: String
+    var title: String
+    var company: String
+    var email: String
+    var phone: String
+    var linkedin: String
+    var website: String
+    var aboutMe: String
     var profilePictureURL: String?
-    var colorScheme: CardColorScheme = CardColorScheme()
-    var fontStyle: FontStyles = .modern
-    var layoutStyle: LayoutStyles = .classic
-    var textScale: CGFloat = 1.0
-    var backgroundStyle: BackgroundStyle = .gradient
-    var showSymbols: Bool = false
-    var isVertical: Bool = false
+    var colorScheme: CardColorScheme
+    var fontStyle: FontStyles
+    var layoutStyle: LayoutStyles
+    var textScale: CGFloat
+    var backgroundStyle: BackgroundStyle
+    var showSymbols: Bool
+    var isVertical: Bool
+    
+    init(
+        id: String = UUID().uuidString,
+        userId: String = "",
+        name: String = "",
+        title: String = "",
+        company: String = "",
+        email: String = "",
+        phone: String = "",
+        linkedin: String = "",
+        website: String = "",
+        aboutMe: String = "",
+        profilePictureURL: String? = nil,
+        colorScheme: CardColorScheme = CardColorScheme(),
+        fontStyle: FontStyles = .modern,
+        layoutStyle: LayoutStyles = .classic,
+        textScale: CGFloat = 1.0,
+        backgroundStyle: BackgroundStyle = .gradient,
+        showSymbols: Bool = false,
+        isVertical: Bool = false
+    ) {
+        self.id = id
+        self.userId = userId
+        self.name = name
+        self.title = title
+        self.company = company
+        self.email = email
+        self.phone = phone
+        self.linkedin = linkedin
+        self.website = website
+        self.aboutMe = aboutMe
+        self.profilePictureURL = profilePictureURL
+        self.colorScheme = colorScheme
+        self.fontStyle = fontStyle
+        self.layoutStyle = layoutStyle
+        self.textScale = textScale
+        self.backgroundStyle = backgroundStyle
+        self.showSymbols = showSymbols
+        self.isVertical = isVertical
+    }
 }
 
 struct CardColorScheme: Codable, Equatable {

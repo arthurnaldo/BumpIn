@@ -21,6 +21,8 @@ struct MainView: View {
     @State private var showingShareFallback = false
     @State private var shareText = ""
     @StateObject private var sharingService = CardSharingService(cardService: BusinessCardService())
+    @State private var isCardZoomed = false
+    @State private var showExpandedCard = false
     
     private func fetchUserCard() {
         guard let userId = authService.user?.uid else { return }
@@ -89,7 +91,7 @@ struct MainView: View {
             ShareCardView()
                 .environmentObject(cardService)
                 .tabItem {
-                    Label("Share", systemImage: "square.and.arrow.up.fill")
+                    Label("Connect", systemImage: "person.badge.plus.fill")
                 }
                 .tag(3)
         }
@@ -134,6 +136,11 @@ struct MainView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("Messages are not available on this device. You can copy the share text to clipboard instead.")
+        }
+        .sheet(isPresented: $showExpandedCard) {
+            if let card = cardService.userCard {
+                ZoomableCardView(card: card, selectedImage: nil)
+            }
         }
     }
     
@@ -250,7 +257,28 @@ struct MainView: View {
                             // Card Preview
                             Button(action: { showCardDetail = true }) {
                                 CardPreviewContainer(businessCard: card, selectedImage: nil)
+                                    .frame(maxWidth: .infinity)
                                     .frame(height: 286)
+                                    .scaleEffect(isCardZoomed ? 1.05 : 1.0)
+                                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isCardZoomed)
+                                    .onHover { isHovered in
+                                        withAnimation {
+                                            isCardZoomed = isHovered
+                                        }
+                                    }
+                                    .gesture(
+                                        MagnificationGesture()
+                                            .onChanged { value in
+                                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                                    isCardZoomed = value > 1
+                                                }
+                                            }
+                                            .onEnded { _ in
+                                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                                    isCardZoomed = false
+                                                }
+                                            }
+                                    )
                             }
                             
                             // Quick Actions Bar
@@ -266,12 +294,39 @@ struct MainView: View {
                                     }
                                 }
                                 
-                                Button(action: { handleMessageShare(card: card) }) {
+                                Button(action: {
+                                    if let card = cardService.userCard {
+                                        sharingService.copyLinkToClipboard(for: card)
+                                    }
+                                }) {
                                     VStack(spacing: 6) {
-                                        Image(systemName: "message.circle.fill")
+                                        Image(systemName: "link.circle.fill")
                                             .font(.system(size: 28))
                                             .foregroundColor(card.colorScheme.primary)
-                                        Text("Message")
+                                        Text("Share Link")
+                                            .font(.system(size: 12, weight: .medium))
+                                            .foregroundColor(card.colorScheme.primary)
+                                    }
+                                }
+                                .overlay {
+                                    if sharingService.showCopyConfirmation {
+                                        Text("Link copied!")
+                                            .font(.caption)
+                                            .foregroundColor(.white)
+                                            .padding(6)
+                                            .background(Color.black.opacity(0.7))
+                                            .cornerRadius(4)
+                                            .offset(y: 30)
+                                            .transition(.opacity)
+                                    }
+                                }
+                                
+                                Button(action: { showExpandedCard = true }) {
+                                    VStack(spacing: 6) {
+                                        Image(systemName: "arrow.up.left.and.arrow.down.right.circle.fill")
+                                            .font(.system(size: 28))
+                                            .foregroundColor(card.colorScheme.primary)
+                                        Text("Expand")
                                             .font(.system(size: 12, weight: .medium))
                                             .foregroundColor(card.colorScheme.primary)
                                     }
@@ -279,10 +334,10 @@ struct MainView: View {
                                 
                                 Button(action: { selectedTab = 3 }) {
                                     VStack(spacing: 6) {
-                                        Image(systemName: "square.and.arrow.up.circle.fill")
+                                        Image(systemName: "person.badge.plus.fill")
                                             .font(.system(size: 28))
                                             .foregroundColor(card.colorScheme.primary)
-                                        Text("Share")
+                                        Text("Connect")
                                             .font(.system(size: 12, weight: .medium))
                                             .foregroundColor(card.colorScheme.primary)
                                     }
