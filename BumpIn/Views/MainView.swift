@@ -230,25 +230,6 @@ struct MainView: View {
                         }
                         .padding()
                     }
-                    
-                    // Recent Contacts Section
-                    if !cardService.recentContacts.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Recent Contacts")
-                                .font(.system(size: 20, weight: .semibold))
-                                .padding(.horizontal)
-                            
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 16) {
-                                    ForEach(cardService.recentContacts) { card in
-                                        BusinessCardPreview(card: card, showFull: false, selectedImage: nil)
-                                            .frame(width: 300)
-                                    }
-                                }
-                                .padding(.horizontal)
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -257,15 +238,59 @@ struct MainView: View {
     private var cardsView: some View {
         NavigationView {
             ScrollView {
-                LazyVStack(spacing: 16) {
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: 16) {
                     ForEach(cardService.contacts) { card in
-                        BusinessCardPreview(card: card, showFull: false, selectedImage: nil)
-                            .padding(.horizontal)
+                        ContactBox(card: card)
                     }
                 }
-                .padding(.vertical)
+                .padding()
             }
             .navigationTitle("Contacts")
+        }
+    }
+}
+
+private struct ContactBox: View {
+    let card: BusinessCard
+    @State private var showCard = false
+    
+    var body: some View {
+        Button(action: { showCard = true }) {
+            VStack {
+                Circle()
+                    .fill(card.colorScheme.primary.opacity(0.1))
+                    .frame(width: 50, height: 50)
+                    .overlay(
+                        Text(String(card.name.prefix(1)))
+                            .font(.title2)
+                            .foregroundColor(card.colorScheme.primary)
+                    )
+                
+                Text(card.name)
+                    .font(.system(.body, design: .rounded))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                
+                Text(card.title)
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                    .lineLimit(1)
+            }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(12)
+        }
+        .sheet(isPresented: $showCard) {
+            NavigationView {
+                BusinessCardPreview(card: card, showFull: true, selectedImage: nil)
+                    .navigationBarItems(trailing: Button("Done") {
+                        showCard = false
+                    })
+            }
         }
     }
 } 

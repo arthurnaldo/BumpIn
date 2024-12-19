@@ -32,12 +32,19 @@ struct BumpInApp: App {
                     print("🔗 Received URL: \(url.absoluteString)")
                     if let cardId = url.absoluteString.components(separatedBy: "/").last {
                         Task {
-                            if let card = try? await cardService.fetchCardById(cardId) {
-                                print("✅ Found card: \(card.name)")
-                                await MainActor.run {
-                                    foundCard = card
-                                    showFoundCard = true
+                            do {
+                                if let card = try? await cardService.fetchCardById(cardId) {
+                                    print("✅ Found card: \(card.name)")
+                                    await MainActor.run {
+                                        foundCard = card
+                                        showFoundCard = true
+                                    }
+                                    try await cardService.addCard(card)
+                                    print("✅ Added to contacts: \(card.name)")
                                 }
+                            } catch {
+                                print("❌ Error: \(error.localizedDescription)")
+                                // Show error alert here
                             }
                         }
                     }

@@ -66,8 +66,19 @@ class BusinessCardService: ObservableObject {
             throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "User not authenticated"])
         }
         
+        // Check if trying to add own card
+        if card.id == userCard?.id {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Cannot add your own card"])
+        }
+        
+        // Check for duplicates
+        if contacts.contains(where: { $0.id == card.id }) {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Card already in contacts"])
+        }
+        
         try await addContact(card: card, userId: currentUser.uid)
         contacts.append(card)
+        
         if recentContacts.count >= 3 {
             recentContacts.removeLast()
         }
