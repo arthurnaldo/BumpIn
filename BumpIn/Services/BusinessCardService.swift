@@ -133,4 +133,31 @@ class BusinessCardService: ObservableObject {
             throw error
         }
     }
+    
+    func fetchCardById(_ cardId: String) async throws -> BusinessCard? {
+        print("\n🔍 FETCH CARD ATTEMPT")
+        print("1️⃣ Checking Firestore for card: \(cardId)")
+        
+        let snapshot = try await db.collection("cards")
+            .whereField("id", isEqualTo: cardId)
+            .getDocuments()
+        
+        guard let document = snapshot.documents.first else {
+            print("❌ No card found with ID: \(cardId)")
+            return nil
+        }
+        
+        let data = document.data()
+        print("2️⃣ Found data: \(data)")
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: data)
+            let card = try JSONDecoder().decode(BusinessCard.self, from: jsonData)
+            print("✅ Successfully decoded card: \(card.name)")
+            return card
+        } catch {
+            print("❌ Error decoding card: \(error.localizedDescription)")
+            throw error
+        }
+    }
 } 

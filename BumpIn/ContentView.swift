@@ -11,7 +11,10 @@ import FirebaseFirestore
 
 struct ContentView: View {
     @StateObject private var authService = AuthenticationService()
+    @EnvironmentObject var cardService: BusinessCardService
     @State private var isLoading = true
+    @State private var foundCard: BusinessCard?
+    @State private var showFoundCard = false
     
     var body: some View {
         Group {
@@ -29,6 +32,20 @@ struct ContentView: View {
         .onAppear {
             // Check auth state immediately
             isLoading = false
+        }
+        .alert("Add Contact?", isPresented: $showFoundCard) {
+            Button("Add") {
+                if let card = foundCard {
+                    Task {
+                        try? await cardService.addCard(card)
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            if let card = foundCard {
+                Text("Would you like to add \(card.name) to your contacts?")
+            }
         }
     }
 }

@@ -20,10 +20,42 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct BumpInApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    @StateObject private var cardService = BusinessCardService()
+    @State private var foundCard: BusinessCard?
+    @State private var showFoundCard = false
     
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(cardService)
+                .onOpenURL { url in
+                    print("🔗 Received URL: \(url.absoluteString)")
+                    if let cardId = url.absoluteString.components(separatedBy: "/").last {
+                        Task {
+                            if let card = try? await cardService.fetchCardById(cardId) {
+                                print("✅ Found card: \(card.name)")
+                                await MainActor.run {
+                                    foundCard = card
+                                    showFoundCard = true
+                                }
+                            }
+                        }
+                    }
+                }
+                .alert("Add Contact?", isPresented: $showFoundCard) {
+                    Button("Add") {
+                        if let card = foundCard {
+                            Task {
+                                try? await cardService.addCard(card)
+                            }
+                        }
+                    }
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    if let card = foundCard {
+                        Text("Would you like to add \(card.name) to your contacts?")
+                    }
+                }
         }
     }
 }

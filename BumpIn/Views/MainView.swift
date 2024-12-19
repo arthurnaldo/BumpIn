@@ -1,6 +1,5 @@
 import SwiftUI
 import FirebaseAuth
-import MessageUI
 
 struct MainView: View {
     @Binding var isAuthenticated: Bool
@@ -17,10 +16,6 @@ struct MainView: View {
     @State private var selectedImage: UIImage?
     @State private var isDarkMode = true
     @Namespace private var themeAnimation
-    @State private var showingMessageComposer = false
-    @State private var showingShareFallback = false
-    @State private var shareText = ""
-    @StateObject private var sharingService = CardSharingService(cardService: BusinessCardService())
     @State private var isCardZoomed = false
     @State private var showExpandedCard = false
     
@@ -29,16 +24,12 @@ struct MainView: View {
         
         Task {
             do {
-                // Fetch user's card
                 if let card = try await cardService.fetchUserCard(userId: userId) {
                     cardService.userCard = card
                 }
-                
-                // Fetch user's contacts
                 try await cardService.fetchContacts(userId: userId)
             } catch {
                 if (error as NSError).domain == "FIRFirestoreErrorDomain" {
-                    // This is likely a first-time user, so we can ignore the error
                     print("First-time user or document doesn't exist yet")
                 } else {
                     errorMessage = error.localizedDescription
@@ -48,33 +39,20 @@ struct MainView: View {
         }
     }
     
-    private func handleMessageShare(card: BusinessCard) {
-        if MFMessageComposeViewController.canSendText() {
-            showingMessageComposer = true
-        } else {
-            // Fallback for simulator or when messages are not available
-            shareText = sharingService.generateShareText(from: card)
-            showingShareFallback = true
-        }
-    }
-    
     var body: some View {
         TabView(selection: $selectedTab) {
-            // Home Tab
             homeView
                 .tabItem {
                     Label("Home", systemImage: "house.fill")
                 }
                 .tag(0)
             
-            // Cards Tab
             cardsView
                 .tabItem {
                     Label("Cards", systemImage: "rectangle.stack.fill")
                 }
                 .tag(1)
             
-            // Edit Card Tab
             NavigationView {
                 if let existingCard = cardService.userCard {
                     CreateCardView(cardService: cardService, existingCard: existingCard)
@@ -87,11 +65,10 @@ struct MainView: View {
             }
             .tag(2)
             
-            // Share Card Tab
             ShareCardView()
                 .environmentObject(cardService)
                 .tabItem {
-                    Label("Connect", systemImage: "person.badge.plus.fill")
+                    Label("Share", systemImage: "square.and.arrow.up")
                 }
                 .tag(3)
         }
@@ -123,19 +100,6 @@ struct MainView: View {
         }
         .onAppear {
             fetchUserCard()
-        }
-        .sheet(isPresented: $showingMessageComposer) {
-            if let card = cardService.userCard {
-                MessageComposerView(messageText: sharingService.generateShareText(from: card))
-            }
-        }
-        .alert("Share Card", isPresented: $showingShareFallback) {
-            Button("Copy to Clipboard") {
-                UIPasteboard.general.string = shareText
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Messages are not available on this device. You can copy the share text to clipboard instead.")
         }
         .sheet(isPresented: $showExpandedCard) {
             if let card = cardService.userCard {
@@ -177,112 +141,53 @@ struct MainView: View {
                                 
                                 // Animated Theme Toggle
                                 Button(action: {
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                                    withAnimation {
                                         isDarkMode.toggle()
                                     }
                                 }) {
-                                    HStack(spacing: 12) {
-                                        // Theme Icon with animation
-                                        ZStack {
-                                            if isDarkMode {
-                                                Image(systemName: "moon.fill")
-                                                    .matchedGeometryEffect(id: "themeIcon", in: themeAnimation)
-                                                    .font(.system(size: 18))
-                                                    .foregroundColor(.white)
-                                            } else {
-                                                Image(systemName: "sun.max.fill")
-                                                    .matchedGeometryEffect(id: "themeIcon", in: themeAnimation)
-                                                    .font(.system(size: 18))
-                                                    .foregroundColor(.orange)
-                                            }
-                                        }
-                                        .frame(width: 32, height: 32)
-                                        .background(
-                                            Circle()
-                                                .fill(isDarkMode ? Color.white.opacity(0.1) : Color.orange.opacity(0.1))
-                                        )
+                                    HStack {
+                                        Image(systemName: isDarkMode ? "moon.fill" : "sun.max.fill")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(isDarkMode ? .white : .black)
+                                            .matchedGeometryEffect(id: "themeIcon", in: themeAnimation)
                                         
                                         Text(isDarkMode ? "Dark Mode" : "Light Mode")
                                             .foregroundColor(isDarkMode ? .white : .black)
-                                            .font(.system(.body, design: .rounded))
                                     }
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 6)
-                                    .background(isDarkMode ? Color.white.opacity(0.05) : Color.black.opacity(0.05))
-                                    .cornerRadius(10)
-                                    .contentShape(Rectangle())
+                                    .padding()
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(isDarkMode ? Color.black : Color.white)
+                                            .shadow(color: .black.opacity(0.1), radius: 5)
+                                    )
                                 }
                                 
-                                Divider()
-                                    .background(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
-                                
-                                Button(action: { 
-                                    showSettings = false
-                                    showSignOutAlert = true 
-                                }) {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: "rectangle.portrait.and.arrow.right")
-                                            .font(.system(size: 18))
-                                            .foregroundColor(.red)
-                                            .frame(width: 32, height: 32)
-                                            .background(
-                                                Circle()
-                                                    .fill(Color.red.opacity(isDarkMode ? 0.15 : 0.1))
-                                            )
-                                        Text("Sign Out")
-                                            .font(.system(.body, design: .rounded))
-                                    }
-                                    .foregroundColor(.red)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 6)
-                                    .background(Color.red.opacity(isDarkMode ? 0.1 : 0.05))
-                                    .cornerRadius(10)
+                                Button(action: { showSignOutAlert = true }) {
+                                    Text("Sign Out")
+                                        .foregroundColor(.red)
                                 }
                                 .padding(.bottom)
                             }
-                            .frame(width: 220)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(isDarkMode ? Color(uiColor: .systemGray5) : .white)
-                            )
-                            .animation(.spring(response: 0.35, dampingFraction: 0.7), value: isDarkMode)
+                            .frame(width: 200)
                         }
                     }
                     .padding(.horizontal)
-                    .padding(.top, 8)
                     
                     // Your Card Section
                     if let card = cardService.userCard {
-                        VStack(spacing: 0) {
-                            // Card Preview
-                            Button(action: { showCardDetail = true }) {
-                                CardPreviewContainer(businessCard: card, selectedImage: nil)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 286)
-                                    .scaleEffect(isCardZoomed ? 1.05 : 1.0)
-                                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isCardZoomed)
-                                    .onHover { isHovered in
-                                        withAnimation {
-                                            isCardZoomed = isHovered
-                                        }
-                                    }
-                                    .gesture(
-                                        MagnificationGesture()
-                                            .onChanged { value in
-                                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                                    isCardZoomed = value > 1
-                                                }
-                                            }
-                                            .onEnded { _ in
-                                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                                    isCardZoomed = false
-                                                }
-                                            }
-                                    )
-                            }
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Your Card")
+                                .font(.system(size: 20, weight: .semibold))
+                                .padding(.horizontal)
                             
-                            // Quick Actions Bar
-                            HStack(spacing: 40) {
+                            BusinessCardPreview(card: card, showFull: false, selectedImage: selectedImage)
+                                .padding(.horizontal)
+                                .onTapGesture {
+                                    showExpandedCard = true
+                                }
+                            
+                            // Quick Actions
+                            HStack(spacing: 20) {
                                 Button(action: { selectedTab = 2 }) {
                                     VStack(spacing: 6) {
                                         Image(systemName: "pencil.circle.fill")
@@ -294,404 +199,73 @@ struct MainView: View {
                                     }
                                 }
                                 
-                                Button(action: {
-                                    if let card = cardService.userCard {
-                                        sharingService.copyLinkToClipboard(for: card)
-                                    }
-                                }) {
-                                    VStack(spacing: 6) {
-                                        Image(systemName: "link.circle.fill")
-                                            .font(.system(size: 28))
-                                            .foregroundColor(card.colorScheme.primary)
-                                        Text("Share Link")
-                                            .font(.system(size: 12, weight: .medium))
-                                            .foregroundColor(card.colorScheme.primary)
-                                    }
-                                }
-                                .overlay {
-                                    if sharingService.showCopyConfirmation {
-                                        Text("Link copied!")
-                                            .font(.caption)
-                                            .foregroundColor(.white)
-                                            .padding(6)
-                                            .background(Color.black.opacity(0.7))
-                                            .cornerRadius(4)
-                                            .offset(y: 30)
-                                            .transition(.opacity)
-                                    }
-                                }
-                                
-                                Button(action: { showExpandedCard = true }) {
-                                    VStack(spacing: 6) {
-                                        Image(systemName: "arrow.up.left.and.arrow.down.right.circle.fill")
-                                            .font(.system(size: 28))
-                                            .foregroundColor(card.colorScheme.primary)
-                                        Text("Expand")
-                                            .font(.system(size: 12, weight: .medium))
-                                            .foregroundColor(card.colorScheme.primary)
-                                    }
-                                }
-                                
                                 Button(action: { selectedTab = 3 }) {
                                     VStack(spacing: 6) {
-                                        Image(systemName: "person.badge.plus.fill")
+                                        Image(systemName: "square.and.arrow.up")
                                             .font(.system(size: 28))
                                             .foregroundColor(card.colorScheme.primary)
-                                        Text("Connect")
+                                        Text("Share")
                                             .font(.system(size: 12, weight: .medium))
                                             .foregroundColor(card.colorScheme.primary)
                                     }
                                 }
                             }
                             .padding(.vertical, 20)
-                            .frame(maxWidth: .infinity)
-                            .background(isDarkMode ? Color(uiColor: .systemGray6) : .white)
                         }
-                        .background(isDarkMode ? Color(uiColor: .systemGray6) : .white)
-                        .cornerRadius(16)
-                        .shadow(color: Color.black.opacity(0.05), radius: 10, y: 2)
-                        .padding(.horizontal)
                     } else {
-                        // Create First Card Prompt
-                        Button(action: { showCreateCard = true }) {
-                            VStack(spacing: 20) {
-                                Image(systemName: "rectangle.stack.badge.plus")
+                        // Create Card Button
+                        Button(action: { selectedTab = 2 }) {
+                            VStack(spacing: 12) {
+                                Image(systemName: "plus.circle.fill")
                                     .font(.system(size: 40))
-                                    .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
-                                
-                                Text("Create Your First Card")
-                                    .font(.system(size: 18, weight: .semibold))
-                                
-                                Text("Start networking by creating your digital business card")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.gray)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal)
+                                Text("Create Your Card")
+                                    .font(.headline)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 40)
-                            .background(Color.white)
-                            .cornerRadius(16)
-                            .shadow(color: Color.black.opacity(0.05), radius: 10, y: 2)
+                            .foregroundColor(.blue)
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.blue.opacity(0.1))
+                            )
                         }
-                        .padding(.horizontal)
-                    }
-                }
-                .padding(.vertical)
-            }
-            .background(Color(uiColor: .systemGroupedBackground))
-            .navigationBarHidden(true)
-        }
-    }
-    
-    private struct NetworkStatView: View {
-        let number: Int
-        let label: String
-        
-        var body: some View {
-            VStack(spacing: 6) {
-                Text("\(number)")
-                    .font(.system(size: 22, weight: .bold))
-                Text(label)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.gray)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(Color.white)
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 6, y: 2)
-        }
-    }
-    
-    private struct HingeStyleCardPreview: View {
-        let card: BusinessCard
-        
-        var body: some View {
-            VStack(alignment: .leading, spacing: 16) {
-                // Profile Initial with Gradient Background
-                ZStack {
-                    Circle()
-                        .fill(LinearGradient(
-                            colors: [card.colorScheme.primary, card.colorScheme.secondary],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ))
-                        .frame(width: 70, height: 70)
-                    
-                    Text(card.name.prefix(1))
-                        .font(.system(size: 28, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(card.name)
-                        .font(.system(size: 17, weight: .semibold))
-                        .lineLimit(1)
-                    
-                    if !card.title.isEmpty {
-                        Text(card.title)
-                            .font(.system(size: 14))
-                            .foregroundColor(.gray)
-                            .lineLimit(1)
+                        .padding()
                     }
                     
-                    if !card.company.isEmpty {
-                        Text(card.company)
-                            .font(.system(size: 14))
-                            .foregroundColor(.gray)
-                            .lineLimit(1)
+                    // Recent Contacts Section
+                    if !cardService.recentContacts.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Recent Contacts")
+                                .font(.system(size: 20, weight: .semibold))
+                                .padding(.horizontal)
+                            
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 16) {
+                                    ForEach(cardService.recentContacts) { card in
+                                        BusinessCardPreview(card: card, showFull: false, selectedImage: nil)
+                                            .frame(width: 300)
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
+                        }
                     }
                 }
             }
-            .frame(width: 180)
-            .padding(16)
-            .background(Color.white)
-            .cornerRadius(16)
-            .shadow(color: Color.black.opacity(0.05), radius: 8, y: 2)
         }
     }
     
     private var cardsView: some View {
         NavigationView {
             ScrollView {
-                LazyVStack(spacing: 12) {
-                    if cardService.contacts.isEmpty {
-                        VStack(spacing: 20) {
-                            Image(systemName: "rectangle.stack.person.crop")
-                                .font(.system(size: 50))
-                                .foregroundColor(.gray)
-                            
-                            Text("No cards yet")
-                                .font(.system(.body, design: .rounded))
-                                .foregroundColor(.secondary)
-                            
-                            Text("Cards you collect will appear here")
-                                .font(.system(.subheadline, design: .rounded))
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 40)
-                    } else {
-                        ForEach(cardService.contacts) { contact in
-                            NavigationLink(destination: CardDetailView(card: contact, selectedImage: nil)) {
-                                ContactListItem(card: contact)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        }
-                    }
-                }
-                .padding(.vertical, 12)
-            }
-            .background(Color(uiColor: .systemGroupedBackground))
-            .navigationTitle("Cards")
-            .navigationBarTitleDisplayMode(.large)
-        }
-    }
-    
-    private var profileView: some View {
-        NavigationView {
-            VStack {
-                if let card = cardService.userCard {
-                    ScrollView {
-                        VStack(spacing: 20) {
-                            BusinessCardPreview(card: card, showFull: true)
-                                .padding()
-                            
-                            Button(action: {
-                                showCreateCard = true
-                            }) {
-                                Label("Edit Card", systemImage: "pencil")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(
-                                        LinearGradient(
-                                            colors: [card.colorScheme.primary, card.colorScheme.secondary],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .cornerRadius(10)
-                            }
+                LazyVStack(spacing: 16) {
+                    ForEach(cardService.contacts) { card in
+                        BusinessCardPreview(card: card, showFull: false, selectedImage: nil)
                             .padding(.horizontal)
-                        }
-                    }
-                } else {
-                    VStack(spacing: 20) {
-                        Image(systemName: "person.text.rectangle")
-                            .font(.system(size: 60))
-                            .foregroundColor(.gray)
-                        
-                        Text("No Business Card")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                        
-                        Text("Create your business card to share with others")
-                            .foregroundColor(.gray)
-                            .multilineTextAlignment(.center)
-                        
-                        Button(action: {
-                            showCreateCard = true
-                        }) {
-                            Text("Create Card")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color(red: 0.1, green: 0.3, blue: 0.5))
-                                .cornerRadius(10)
-                        }
-                        .padding(.horizontal)
-                    }
-                    .padding()
-                }
-            }
-            .navigationTitle("Profile")
-        }
-    }
-}
-
-struct QuickActionButton: View {
-    let title: String
-    let icon: String
-    let color: Color
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 30))
-                    .foregroundColor(color)
-                
-                Text(title)
-                    .font(.system(.subheadline, design: .rounded))
-                    .fontWeight(.medium)
-                    .foregroundColor(.primary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.white)
-            .cornerRadius(12)
-            .shadow(color: .black.opacity(0.1), radius: 5)
-        }
-    }
-}
-
-struct ContactPreviewCard: View {
-    let card: BusinessCard
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(width: 50, height: 50)
-                    .overlay(
-                        Text(card.name.split(separator: " ").prefix(2).map { String($0.prefix(1)) }.joined())
-                            .font(.system(.headline, design: .rounded))
-                            .foregroundColor(.gray)
-                    )
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(card.name)
-                        .font(.system(.body, design: .rounded))
-                        .fontWeight(.medium)
-                    
-                    if !card.title.isEmpty {
-                        Text(card.title)
-                            .font(.system(.subheadline, design: .rounded))
-                            .foregroundColor(.gray)
                     }
                 }
+                .padding(.vertical)
             }
-            
-            if !card.company.isEmpty {
-                Text(card.company)
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundColor(.gray)
-            }
+            .navigationTitle("Contacts")
         }
-        .padding()
-        .frame(width: 250)
-        .background(Color.white)
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.1), radius: 5)
-    }
-}
-
-struct ContactListItem: View {
-    let card: BusinessCard
-    @Environment(\.colorScheme) var colorScheme
-    @Namespace private var animation
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 16) {
-                // Modern circular avatar with gradient background
-                Circle()
-                    .fill(LinearGradient(
-                        colors: [card.colorScheme.primary, card.colorScheme.secondary],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
-                    .frame(width: 50, height: 50)
-                    .overlay(
-                        Text(card.name.split(separator: " ").prefix(2).map { String($0.prefix(1)) }.joined())
-                            .font(.system(.headline, design: .rounded))
-                            .foregroundColor(.white)
-                    )
-                    .shadow(color: card.colorScheme.primary.opacity(0.3), radius: 5)
-                    .matchedGeometryEffect(id: "avatar_\(card.id)", in: animation)
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(card.name)
-                        .font(.system(.body, design: .rounded))
-                        .fontWeight(.semibold)
-                        .foregroundColor(colorScheme == .dark ? .white : .primary)
-                        .matchedGeometryEffect(id: "name_\(card.id)", in: animation)
-                    
-                    if !card.title.isEmpty && !card.company.isEmpty {
-                        Text("\(card.title) • \(card.company)")
-                            .font(.system(.subheadline, design: .rounded))
-                            .foregroundColor(.gray)
-                            .lineLimit(1)
-                            .matchedGeometryEffect(id: "details_\(card.id)", in: animation)
-                    } else if !card.title.isEmpty {
-                        Text(card.title)
-                            .font(.system(.subheadline, design: .rounded))
-                            .foregroundColor(.gray)
-                            .matchedGeometryEffect(id: "title_\(card.id)", in: animation)
-                    } else if !card.company.isEmpty {
-                        Text(card.company)
-                            .font(.system(.subheadline, design: .rounded))
-                            .foregroundColor(.gray)
-                            .matchedGeometryEffect(id: "company_\(card.id)", in: animation)
-                    }
-                }
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.gray.opacity(0.5))
-            }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 16)
-            .background(colorScheme == .dark ? Color(uiColor: .systemGray6) : .white)
-            .contentShape(Rectangle())
-            
-            // Bottom border with gradient
-            Rectangle()
-                .fill(LinearGradient(
-                    colors: [card.colorScheme.primary.opacity(0.2), card.colorScheme.secondary.opacity(0.2)],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                ))
-                .frame(height: 1)
-        }
-        .transition(.scale(scale: 0.9).combined(with: .opacity))
     }
 } 
