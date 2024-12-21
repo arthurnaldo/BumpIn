@@ -11,6 +11,10 @@ struct LoginView: View {
     @State private var showError = false
     @State private var isShowingPasswordRequirements = false
     @State private var isLoading = false
+    @StateObject private var userService = UserService()
+    @State private var username = ""
+    @State private var isCheckingUsername = false
+    @State private var usernameAvailable = false
     
     var body: some View {
         ZStack {
@@ -113,6 +117,61 @@ struct LoginView: View {
                                     }
                             }
                         }
+                        
+                        if isSignUp {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Username")
+                                    .foregroundColor(.white.opacity(0.8))
+                                    .font(.system(.subheadline, design: .rounded))
+                                
+                                TextField("", text: $username)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .autocapitalization(.none)
+                                    .onChange(of: username) { _, newValue in
+                                        let sanitized = newValue.lowercased().trimmingCharacters(in: .whitespaces)
+                                        if sanitized != newValue {
+                                            username = sanitized
+                                        }
+                                        
+                                        Task {
+                                            isCheckingUsername = true
+                                            do {
+                                                try await userService.validateUsername(sanitized)
+                                                usernameAvailable = true
+                                                showError = false
+                                            } catch let error as UserService.ValidationError {
+                                                usernameAvailable = false
+                                                showError = true
+                                                authService.errorMessage = error.localizedDescription
+                                            } catch {
+                                                usernameAvailable = false
+                                                showError = true
+                                                authService.errorMessage = "Error checking username"
+                                            }
+                                            isCheckingUsername = false
+                                        }
+                                    }
+                                
+                                if !username.isEmpty {
+                                    HStack {
+                                        if isCheckingUsername {
+                                            ProgressView()
+                                                .scaleEffect(0.5)
+                                        } else if usernameAvailable {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundColor(.green)
+                                        } else {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .foregroundColor(.red)
+                                        }
+                                        
+                                        Text(usernameAvailable ? "Username available" : "Username taken")
+                                            .font(.caption)
+                                            .foregroundColor(usernameAvailable ? .green : .red)
+                                    }
+                                }
+                            }
+                        }
                     }
                     .padding(.horizontal, 20)
                     
@@ -137,16 +196,30 @@ struct LoginView: View {
                                     return
                                 }
                                 
-                                do {
-                                    if isSignUp {
-                                        try await Auth.auth().createUser(withEmail: email, password: password)
-                                    } else {
-                                        try await Auth.auth().signIn(withEmail: email, password: password)
+                                if isSignUp {
+                                    guard usernameAvailable else {
+                                        showError = true
+                                        authService.errorMessage = "Please choose an available username"
+                                        isLoading = false
+                                        return
                                     }
-                                    isAuthenticated = true
-                                } catch {
-                                    showError = true
-                                    authService.errorMessage = error.localizedDescription
+                                    
+                                    do {
+                                        try await Auth.auth().createUser(withEmail: email, password: password)
+                                        try await userService.createUser(username: username)
+                                        isAuthenticated = true
+                                    } catch {
+                                        showError = true
+                                        authService.errorMessage = error.localizedDescription
+                                    }
+                                } else {
+                                    do {
+                                        try await Auth.auth().signIn(withEmail: email, password: password)
+                                        isAuthenticated = true
+                                    } catch {
+                                        showError = true
+                                        authService.errorMessage = error.localizedDescription
+                                    }
                                 }
                                 isLoading = false
                             }

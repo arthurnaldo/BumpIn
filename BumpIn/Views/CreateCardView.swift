@@ -49,7 +49,7 @@ enum PersonRole: String, CaseIterable {
 
 struct CreateCardView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var authService = AuthenticationService()
+    @EnvironmentObject var authService: AuthenticationService
     @ObservedObject var cardService: BusinessCardService
     @StateObject private var storageService = StorageService()
     @State private var businessCard: BusinessCard

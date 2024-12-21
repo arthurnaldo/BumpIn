@@ -11,6 +11,18 @@ class BusinessCardService: ObservableObject {
     @Published var recentContacts: [BusinessCard] = []
     
     private let db = Firestore.firestore()
+    private var contactsListener: ListenerRegistration?
+    
+    enum AuthError: LocalizedError {
+        case notAuthenticated
+        
+        var errorDescription: String? {
+            switch self {
+            case .notAuthenticated:
+                return "User not authenticated"
+            }
+        }
+    }
     
     func saveCard(_ card: BusinessCard, userId: String) async throws {
         var updatedCard = card
@@ -76,13 +88,25 @@ class BusinessCardService: ObservableObject {
             throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Card already in contacts"])
         }
         
-        try await addContact(card: card, userId: currentUser.uid)
-        contacts.append(card)
-        
-        if recentContacts.count >= 3 {
-            recentContacts.removeLast()
+        // Optimistic update
+        await MainActor.run {
+            contacts.append(card)
+            recentContacts = Array(contacts.prefix(3))
         }
-        recentContacts.insert(card, at: 0)
+        
+        do {
+            // Add to Firestore
+            try await addContact(card: card, userId: currentUser.uid)
+            // Verify with fresh data
+            try await fetchContacts(userId: currentUser.uid)
+        } catch {
+            // Rollback on error
+            await MainActor.run {
+                contacts.removeAll(where: { $0.id == card.id })
+                recentContacts = Array(contacts.prefix(3))
+            }
+            throw error
+        }
     }
     
     func removeContact(cardId: String, userId: String) async throws {
@@ -146,29 +170,60 @@ class BusinessCardService: ObservableObject {
     }
     
     func fetchCardById(_ cardId: String) async throws -> BusinessCard? {
-        print("\n🔍 FETCH CARD ATTEMPT")
-        print("1️⃣ Checking Firestore for card: \(cardId)")
+        guard let currentUser = Auth.auth().currentUser else { throw AuthError.notAuthenticated }
         
-        let snapshot = try await db.collection("cards")
-            .whereField("id", isEqualTo: cardId)
-            .getDocuments()
+        let cardDoc = try await db.collection("cards").document(cardId).getDocument()
+        guard let cardData = cardDoc.data() else { return nil }
         
-        guard let document = snapshot.documents.first else {
-            print("❌ No card found with ID: \(cardId)")
-            return nil
+        // Check if user has access to this card
+        let cardOwnerId = cardData["userId"] as? String ?? ""
+        let isPublic = cardData["isPublic"] as? Bool ?? false
+        
+        if cardOwnerId != currentUser.uid && !isPublic {
+            // Check if connected
+            let connectionDoc = try await db.collection("users")
+                .document(currentUser.uid)
+                .collection("connections")
+                .document(cardOwnerId)
+                .getDocument()
+            
+            guard connectionDoc.exists else {
+                throw NSError(domain: "", code: -1, 
+                    userInfo: [NSLocalizedDescriptionKey: "You need to connect with this user to view their card"])
+            }
         }
         
-        let data = document.data()
-        print("2️⃣ Found data: \(data)")
+        let jsonData = try JSONSerialization.data(withJSONObject: cardData)
+        return try JSONDecoder().decode(BusinessCard.self, from: jsonData)
+    }
+    
+    func startContactsListener(userId: String) {
+        contactsListener?.remove() // Remove existing listener if any
         
-        do {
-            let jsonData = try JSONSerialization.data(withJSONObject: data)
-            let card = try JSONDecoder().decode(BusinessCard.self, from: jsonData)
-            print("✅ Successfully decoded card: \(card.name)")
-            return card
-        } catch {
-            print("❌ Error decoding card: \(error.localizedDescription)")
-            throw error
-        }
+        contactsListener = db.collection("users").document(userId).collection("contacts")
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self = self, let snapshot = snapshot else { return }
+                
+                Task {
+                    var fetchedContacts: [BusinessCard] = []
+                    for document in snapshot.documents {
+                        let jsonData = try JSONSerialization.data(withJSONObject: document.data())
+                        if let contact = try? JSONDecoder().decode(BusinessCard.self, from: jsonData) {
+                            fetchedContacts.append(contact)
+                        }
+                    }
+                    
+                    await MainActor.run {
+                        self.contacts = fetchedContacts
+                        self.recentContacts = Array(fetchedContacts.prefix(3))
+                    }
+                }
+            }
+    }
+    
+    // Don't forget to remove listener when done
+    func stopContactsListener() {
+        contactsListener?.remove()
+        contactsListener = nil
     }
 } 

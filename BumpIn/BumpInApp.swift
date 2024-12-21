@@ -23,6 +23,8 @@ struct BumpInApp: App {
     @StateObject private var cardService = BusinessCardService()
     @State private var foundCard: BusinessCard?
     @State private var showFoundCard = false
+    @State private var errorMessage: String?
+    @State private var showError = false
     
     var body: some Scene {
         WindowGroup {
@@ -39,12 +41,13 @@ struct BumpInApp: App {
                                         foundCard = card
                                         showFoundCard = true
                                     }
-                                    try await cardService.addCard(card)
-                                    print("✅ Added to contacts: \(card.name)")
                                 }
                             } catch {
                                 print("❌ Error: \(error.localizedDescription)")
-                                // Show error alert here
+                                await MainActor.run {
+                                    errorMessage = error.localizedDescription
+                                    showError = true
+                                }
                             }
                         }
                     }
@@ -53,7 +56,12 @@ struct BumpInApp: App {
                     Button("Add") {
                         if let card = foundCard {
                             Task {
-                                try? await cardService.addCard(card)
+                                do {
+                                    try await cardService.addCard(card)
+                                } catch {
+                                    errorMessage = error.localizedDescription
+                                    showError = true
+                                }
                             }
                         }
                     }
@@ -62,6 +70,11 @@ struct BumpInApp: App {
                     if let card = foundCard {
                         Text("Would you like to add \(card.name) to your contacts?")
                     }
+                }
+                .alert("Error", isPresented: $showError) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text(errorMessage ?? "Unknown error")
                 }
         }
     }

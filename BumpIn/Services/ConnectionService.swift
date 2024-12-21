@@ -1,0 +1,246 @@
+import FirebaseFirestore
+import FirebaseAuth
+
+@MainActor
+class ConnectionService: ObservableObject {
+    private let db = Firestore.firestore()
+    private let notificationService = NotificationService()
+    @Published var connections: [User] = []
+    @Published var pendingRequests: [ConnectionRequest] = []
+    @Published var sentRequests: [ConnectionRequest] = []
+    
+    func sendConnectionRequest(to user: User) async throws {
+        guard let currentUser = Auth.auth().currentUser else { throw AuthError.notAuthenticated }
+        
+        // Check if already connected
+        let existingConnection = try await db.collection("users")
+            .document(currentUser.uid)
+            .collection("connections")
+            .document(user.id)
+            .getDocument()
+        
+        if existingConnection.exists {
+            throw ConnectionError.alreadyConnected
+        }
+        
+        // Check if request already exists
+        let existingRequest = try await db.collection("users")
+            .document(user.id)
+            .collection("connectionRequests")
+            .whereField("fromUserId", isEqualTo: currentUser.uid)
+            .getDocuments()
+        
+        if !existingRequest.documents.isEmpty {
+            throw ConnectionError.requestAlreadyExists
+        }
+        
+        // Get sender's username first
+        let senderDoc = try await db.collection("users").document(currentUser.uid).getDocument()
+        guard let senderData = senderDoc.data(),
+              let senderUsername = senderData["username"] as? String else {
+            throw ConnectionError.invalidRequest
+        }
+        
+        // Create the request
+        let request = ConnectionRequest(
+            id: UUID().uuidString,
+            fromUserId: currentUser.uid,
+            toUserId: user.id,
+            fromUsername: senderUsername,
+            toUsername: user.username,
+            status: .pending,
+            timestamp: Date()
+        )
+        
+        let requestData = try JSONEncoder().encode(request)
+        guard let dict = try JSONSerialization.jsonObject(with: requestData) as? [String: Any] else {
+            throw ConnectionError.invalidRequest
+        }
+        
+        // Use a batch write instead of transaction
+        let batch = db.batch()
+        
+        // Add request to recipient's requests collection
+        let recipientRef = db.collection("users")
+            .document(user.id)
+            .collection("connectionRequests")
+            .document(request.id)
+        batch.setData(dict, forDocument: recipientRef)
+        
+        // Add to sender's sent requests
+        let senderRef = db.collection("users")
+            .document(currentUser.uid)
+            .collection("sentRequests")
+            .document(request.id)
+        batch.setData(dict, forDocument: senderRef)
+        
+        try await batch.commit()
+        
+        // Send notification after successful request
+        try await notificationService.sendConnectionRequestNotification(
+            to: user.id,
+            fromUsername: senderUsername
+        )
+    }
+    
+    func handleConnectionRequest(_ request: ConnectionRequest, accept: Bool) async throws {
+        guard let currentUser = Auth.auth().currentUser else { throw AuthError.notAuthenticated }
+        
+        let batch = db.batch()
+        let status = accept ? ConnectionRequest.RequestStatus.accepted : ConnectionRequest.RequestStatus.rejected
+        
+        // Update in recipient's requests
+        let recipientRef = db.collection("users")
+            .document(currentUser.uid)
+            .collection("connectionRequests")
+            .document(request.id)
+        batch.updateData(["status": status.rawValue], forDocument: recipientRef)
+        
+        // Update in sender's sent requests
+        let senderRef = db.collection("users")
+            .document(request.fromUserId)
+            .collection("sentRequests")
+            .document(request.id)
+        batch.updateData(["status": status.rawValue], forDocument: senderRef)
+        
+        if accept {
+            // Create connection for both users
+            let connection: [String: Any] = [
+                "userId": request.fromUserId,
+                "username": request.fromUsername,
+                "timestamp": Date()
+            ]
+            
+            let userConnectionRef = db.collection("users")
+                .document(currentUser.uid)
+                .collection("connections")
+                .document(request.fromUserId)
+            batch.setData(connection, forDocument: userConnectionRef)
+            
+            let reverseConnection: [String: Any] = [
+                "userId": currentUser.uid,
+                "username": request.toUsername,
+                "timestamp": Date()
+            ]
+            
+            let otherUserConnectionRef = db.collection("users")
+                .document(request.fromUserId)
+                .collection("connections")
+                .document(currentUser.uid)
+            batch.setData(reverseConnection, forDocument: otherUserConnectionRef)
+        }
+        
+        try await batch.commit()
+        
+        // Refresh lists
+        try await fetchPendingRequests()
+        try await fetchConnections()
+    }
+    
+    func fetchPendingRequests() async throws {
+        guard let currentUser = Auth.auth().currentUser else { throw AuthError.notAuthenticated }
+        
+        let snapshot = try await db.collection("users")
+            .document(currentUser.uid)
+            .collection("connectionRequests")
+            .whereField("status", isEqualTo: ConnectionRequest.RequestStatus.pending.rawValue)
+            .order(by: "timestamp", descending: true)
+            .getDocuments()
+        
+        let requests = try snapshot.documents.map { doc in
+            let data = try JSONSerialization.data(withJSONObject: doc.data())
+            return try JSONDecoder().decode(ConnectionRequest.self, from: data)
+        }
+        
+        // Update on main thread
+        self.pendingRequests = requests
+    }
+    
+    func fetchConnections() async throws {
+        guard let currentUser = Auth.auth().currentUser else { throw AuthError.notAuthenticated }
+        
+        let snapshot = try await db.collection("users")
+            .document(currentUser.uid)
+            .collection("connections")
+            .order(by: "timestamp", descending: true)
+            .getDocuments()
+        
+        let userIds = snapshot.documents.compactMap { doc -> String? in
+            return doc.data()["userId"] as? String
+        }
+        
+        var fetchedUsers: [User] = []
+        for userId in userIds {
+            if let user = try await fetchUser(userId: userId) {
+                fetchedUsers.append(user)
+            }
+        }
+        
+        // Update on main thread
+        self.connections = fetchedUsers
+    }
+    
+    private func fetchUser(userId: String) async throws -> User? {
+        let doc = try await db.collection("users").document(userId).getDocument()
+        guard let data = doc.data() else { return nil }
+        
+        let jsonData = try JSONSerialization.data(withJSONObject: data)
+        return try JSONDecoder().decode(User.self, from: jsonData)
+    }
+    
+    func removeConnection(with userId: String) async throws {
+        guard let currentUser = Auth.auth().currentUser else { throw AuthError.notAuthenticated }
+        
+        let batch = db.batch()
+        
+        // Remove connection from current user's connections
+        let userConnectionRef = db.collection("users")
+            .document(currentUser.uid)
+            .collection("connections")
+            .document(userId)
+        batch.deleteDocument(userConnectionRef)
+        
+        // Remove connection from other user's connections
+        let otherUserConnectionRef = db.collection("users")
+            .document(userId)
+            .collection("connections")
+            .document(currentUser.uid)
+        batch.deleteDocument(otherUserConnectionRef)
+        
+        try await batch.commit()
+        
+        // Refresh connections list
+        try await fetchConnections()
+    }
+    
+    enum ConnectionError: LocalizedError {
+        case requestAlreadyExists
+        case requestNotFound
+        case invalidRequest
+        case alreadyConnected
+        
+        var errorDescription: String? {
+            switch self {
+            case .requestAlreadyExists:
+                return "A connection request already exists"
+            case .requestNotFound:
+                return "Connection request not found"
+            case .invalidRequest:
+                return "Invalid connection request"
+            case .alreadyConnected:
+                return "You are already connected with this user"
+            }
+        }
+    }
+    
+    enum AuthError: LocalizedError {
+        case notAuthenticated
+        
+        var errorDescription: String? {
+            switch self {
+            case .notAuthenticated:
+                return "User not authenticated"
+            }
+        }
+    }
+} 

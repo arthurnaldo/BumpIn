@@ -5,6 +5,8 @@ struct MainView: View {
     @Binding var isAuthenticated: Bool
     @StateObject private var authService = AuthenticationService()
     @StateObject private var cardService = BusinessCardService()
+    @StateObject private var userService = UserService()
+    @StateObject private var connectionService = ConnectionService()
     @State private var showSignOutAlert = false
     @State private var showCreateCard = false
     @State private var showCardDetail = false
@@ -39,6 +41,17 @@ struct MainView: View {
         }
     }
     
+    private func fetchCurrentUser() {
+        Task {
+            do {
+                try await userService.fetchCurrentUser()
+            } catch {
+                errorMessage = error.localizedDescription
+                showError = true
+            }
+        }
+    }
+    
     var body: some View {
         TabView(selection: $selectedTab) {
             homeView
@@ -47,28 +60,25 @@ struct MainView: View {
                 }
                 .tag(0)
             
-            cardsView
+            ConnectionsView()
+                .environmentObject(connectionService)
                 .tabItem {
-                    Label("Cards", systemImage: "rectangle.stack.fill")
+                    Label("Network", systemImage: "person.2.fill")
                 }
                 .tag(1)
             
-            NavigationView {
-                if let existingCard = cardService.userCard {
-                    CreateCardView(cardService: cardService, existingCard: existingCard)
-                } else {
-                    CreateCardView(cardService: cardService)
-                }
-            }
-            .tabItem {
-                Label("Edit Card", systemImage: "pencil.circle.fill")
-            }
-            .tag(2)
-            
-            ShareCardView()
-                .environmentObject(cardService)
+            SearchView()
+                .environmentObject(userService)
                 .tabItem {
-                    Label("Share", systemImage: "square.and.arrow.up")
+                    Label("Search", systemImage: "magnifyingglass")
+                }
+                .tag(2)
+            
+            SettingsView()
+                .environmentObject(userService)
+                .environmentObject(authService)
+                .tabItem {
+                    Label("Settings", systemImage: "gear")
                 }
                 .tag(3)
         }
@@ -100,6 +110,13 @@ struct MainView: View {
         }
         .onAppear {
             fetchUserCard()
+            fetchCurrentUser()
+            if let userId = authService.user?.uid {
+                cardService.startContactsListener(userId: userId)
+            }
+        }
+        .onDisappear {
+            cardService.stopContactsListener()
         }
         .sheet(isPresented: $showExpandedCard) {
             if let card = cardService.userCard {
