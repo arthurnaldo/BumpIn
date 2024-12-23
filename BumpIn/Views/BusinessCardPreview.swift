@@ -14,44 +14,58 @@ struct BusinessCardPreview: View {
     }
     
     var body: some View {
-        VStack(spacing: 16) {
-            Group {
-                switch card.layoutStyle {
-                case .classic:
-                    classicLayout
-                case .modern:
-                    modernLayout
-                case .compact:
-                    compactLayout
-                case .centered:
-                    centeredLayout
-                case .minimal:
-                    minimalLayout
-                case .elegant:
-                    elegantLayout
-                case .professional:
-                    professionalLayout
+        Group {
+            VStack(spacing: 16) {
+                Group {
+                    switch card.layoutStyle {
+                    case .classic:
+                        classicLayout
+                    case .modern:
+                        modernLayout
+                    case .compact:
+                        compactLayout
+                    case .centered:
+                        centeredLayout
+                    case .minimal:
+                        minimalLayout
+                    case .elegant:
+                        elegantLayout
+                    case .professional:
+                        professionalLayout
+                    }
+                }
+                .transition(.opacity.combined(with: .scale))
+            }
+            .padding(showFull ? 24 : 16)
+            .frame(maxWidth: .infinity)
+            .frame(height: showFull ? nil : 200)
+            .background(card.colorScheme.backgroundView(style: card.backgroundStyle))
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.layoutStyle)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.colorScheme)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.fontStyle)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.backgroundStyle)
+            .task {
+                if let imageURL = card.profilePictureURL {
+                    do {
+                        profileImage = try await storageService.loadProfileImage(from: imageURL)
+                    } catch {
+                        print("Error loading profile image: \(error.localizedDescription)")
+                    }
                 }
             }
-            .transition(.opacity.combined(with: .scale))
+            .onAppear {
+                print("BusinessCardPreview appeared for card: \(card.name)")
+            }
         }
-        .padding(showFull ? 24 : 16)
-        .frame(maxWidth: .infinity)
-        .frame(height: showFull ? nil : 200)
-        .background(card.colorScheme.backgroundView(style: card.backgroundStyle))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.layoutStyle)
-        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.colorScheme)
-        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.fontStyle)
-        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.backgroundStyle)
-        .task {
-            if let imageURL = card.profilePictureURL {
-                do {
-                    profileImage = try await storageService.loadProfileImage(from: imageURL)
-                } catch {
-                    print("Error loading profile image: \(error.localizedDescription)")
-                }
+        .overlay {
+            if card.name.isEmpty {
+                ContentUnavailableView(
+                    "Card Unavailable",
+                    systemImage: "rectangle.on.rectangle.slash",
+                    description: Text("This user's business card cannot be displayed")
+                )
             }
         }
     }

@@ -23,11 +23,12 @@ class ConnectionService: ObservableObject {
             throw ConnectionError.alreadyConnected
         }
         
-        // Check if request already exists
+        // Check if pending request already exists
         let existingRequest = try await db.collection("users")
             .document(user.id)
             .collection("connectionRequests")
             .whereField("fromUserId", isEqualTo: currentUser.uid)
+            .whereField("status", isEqualTo: ConnectionRequest.RequestStatus.pending.rawValue)
             .getDocuments()
         
         if !existingRequest.documents.isEmpty {
@@ -181,11 +182,29 @@ class ConnectionService: ObservableObject {
     }
     
     private func fetchUser(userId: String) async throws -> User? {
+        // Check cache first
+        if let cachedUser = await CacheManager.shared.getCachedUser(id: userId) {
+            return cachedUser
+        }
+        
         let doc = try await db.collection("users").document(userId).getDocument()
         guard let data = doc.data() else { return nil }
         
         let jsonData = try JSONSerialization.data(withJSONObject: data)
-        return try JSONDecoder().decode(User.self, from: jsonData)
+        var user = try JSONDecoder().decode(User.self, from: jsonData)
+        
+        // Fetch user's card
+        if let cardDoc = try? await db.collection("cards")
+            .document(userId)
+            .getDocument(),
+            let cardData = cardDoc.data() {
+            let cardJsonData = try JSONSerialization.data(withJSONObject: cardData)
+            user.card = try JSONDecoder().decode(BusinessCard.self, from: cardJsonData)
+        }
+        
+        // Cache the user
+        await CacheManager.shared.cacheUser(user)
+        return user
     }
     
     func removeConnection(with userId: String) async throws {
@@ -211,6 +230,51 @@ class ConnectionService: ObservableObject {
         
         // Refresh connections list
         try await fetchConnections()
+    }
+    
+    func hasPendingRequest(for userId: String) async throws -> Bool {
+        guard let currentUser = Auth.auth().currentUser else { throw AuthError.notAuthenticated }
+        
+        let snapshot = try await db.collection("users")
+            .document(userId)
+            .collection("connectionRequests")
+            .whereField("fromUserId", isEqualTo: currentUser.uid)
+            .whereField("status", isEqualTo: ConnectionRequest.RequestStatus.pending.rawValue)
+            .limit(to: 1)
+            .getDocuments()
+        
+        return !snapshot.documents.isEmpty
+    }
+    
+    func hasIncomingRequest(from userId: String) async throws -> Bool {
+        guard let currentUser = Auth.auth().currentUser else { throw AuthError.notAuthenticated }
+        
+        let snapshot = try await db.collection("users")
+            .document(currentUser.uid)
+            .collection("connectionRequests")
+            .whereField("fromUserId", isEqualTo: userId)
+            .whereField("status", isEqualTo: ConnectionRequest.RequestStatus.pending.rawValue)
+            .limit(to: 1)
+            .getDocuments()
+        
+        return !snapshot.documents.isEmpty
+    }
+    
+    func findPendingRequest(from userId: String) async throws -> ConnectionRequest? {
+        guard let currentUser = Auth.auth().currentUser else { throw AuthError.notAuthenticated }
+        
+        let snapshot = try await db.collection("users")
+            .document(currentUser.uid)
+            .collection("connectionRequests")
+            .whereField("fromUserId", isEqualTo: userId)
+            .whereField("status", isEqualTo: ConnectionRequest.RequestStatus.pending.rawValue)
+            .limit(to: 1)
+            .getDocuments()
+        
+        guard let doc = snapshot.documents.first else { return nil }
+        
+        let data = try JSONSerialization.data(withJSONObject: doc.data())
+        return try JSONDecoder().decode(ConnectionRequest.self, from: data)
     }
     
     enum ConnectionError: LocalizedError {

@@ -21,31 +21,25 @@ struct MainView: View {
     @State private var isCardZoomed = false
     @State private var showExpandedCard = false
     
-    private func fetchUserCard() {
+    private func fetchInitialData() async {
         guard let userId = authService.user?.uid else { return }
         
-        Task {
-            do {
-                if let card = try await cardService.fetchUserCard(userId: userId) {
-                    cardService.userCard = card
-                }
-                try await cardService.fetchContacts(userId: userId)
-            } catch {
-                if (error as NSError).domain == "FIRFirestoreErrorDomain" {
-                    print("First-time user or document doesn't exist yet")
-                } else {
-                    errorMessage = error.localizedDescription
-                    showError = true
-                }
+        do {
+            // Fetch user data
+            try await userService.fetchCurrentUser()
+            
+            // Fetch card data
+            if let card = try await cardService.fetchUserCard(userId: userId) {
+                cardService.userCard = card
             }
-        }
-    }
-    
-    private func fetchCurrentUser() {
-        Task {
-            do {
-                try await userService.fetchCurrentUser()
-            } catch {
+            try await cardService.fetchContacts(userId: userId)
+            
+            // Start listeners
+            cardService.startContactsListener(userId: userId)
+        } catch {
+            if (error as NSError).domain == "FIRFirestoreErrorDomain" {
+                print("First-time user or document doesn't exist yet")
+            } else {
                 errorMessage = error.localizedDescription
                 showError = true
             }
@@ -60,19 +54,31 @@ struct MainView: View {
                 }
                 .tag(0)
             
+            NavigationView {
+                if let existingCard = cardService.userCard {
+                    CreateCardView(cardService: cardService, existingCard: existingCard)
+                } else {
+                    CreateCardView(cardService: cardService)
+                }
+            }
+            .tabItem {
+                Label("My Card", systemImage: "person.crop.rectangle.fill")
+            }
+            .tag(1)
+            
             ConnectionsView()
                 .environmentObject(connectionService)
                 .tabItem {
                     Label("Network", systemImage: "person.2.fill")
                 }
-                .tag(1)
+                .tag(2)
             
             SearchView()
                 .environmentObject(userService)
                 .tabItem {
                     Label("Search", systemImage: "magnifyingglass")
                 }
-                .tag(2)
+                .tag(3)
             
             SettingsView()
                 .environmentObject(userService)
@@ -80,7 +86,7 @@ struct MainView: View {
                 .tabItem {
                     Label("Settings", systemImage: "gear")
                 }
-                .tag(3)
+                .tag(4)
         }
         .tint(Color(red: 0.1, green: 0.3, blue: 0.5))
         .preferredColorScheme(isDarkMode ? .dark : .light)
@@ -108,12 +114,8 @@ struct MainView: View {
         } message: {
             Text("Are you sure you want to sign out?")
         }
-        .onAppear {
-            fetchUserCard()
-            fetchCurrentUser()
-            if let userId = authService.user?.uid {
-                cardService.startContactsListener(userId: userId)
-            }
+        .task {
+            await fetchInitialData()
         }
         .onDisappear {
             cardService.stopContactsListener()

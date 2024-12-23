@@ -20,6 +20,9 @@ class AuthenticationService: ObservableObject {
     
     func signOut() throws {
         print("AuthenticationService: Signing out")
+        Task {
+            await CacheManager.shared.clearCache()
+        }
         try Auth.auth().signOut()
     }
 } 

@@ -7,52 +7,34 @@ struct ConnectionsView: View {
     @State private var selectedTab = 0
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
-                // Custom segmented control
-                HStack(spacing: 0) {
-                    TabButton(title: "Connections (\(connectionService.connections.count))", 
-                             isSelected: selectedTab == 0) {
-                        withAnimation {
-                            selectedTab = 0
-                        }
-                    }
-                    
-                    TabButton(title: "Requests (\(connectionService.pendingRequests.count))", 
-                             isSelected: selectedTab == 1) {
-                        withAnimation {
-                            selectedTab = 1
-                        }
-                    }
-                }
+                // Segmented control
+                CustomSegmentedControl(
+                    selection: $selectedTab,
+                    items: [
+                        .init(title: "Connections", count: connectionService.connections.count),
+                        .init(title: "Requests", count: connectionService.pendingRequests.count)
+                    ]
+                )
                 .padding(.horizontal)
-                .padding(.top, 8)
                 
+                // Content
                 TabView(selection: $selectedTab) {
-                    // Connections Tab
-                    ConnectionsList(
-                        connections: connectionService.connections,
-                        errorMessage: $errorMessage,
-                        showError: $showError
-                    )
-                    .environmentObject(connectionService)
-                    .tag(0)
+                    ConnectionsList()
+                        .environmentObject(connectionService)
+                        .tag(0)
                     
-                    // Requests Tab
-                    RequestsList(
-                        requests: connectionService.pendingRequests,
-                        onAccept: { request in
-                            handleRequest(request, accept: true)
-                        },
-                        onReject: { request in
-                            handleRequest(request, accept: false)
-                        }
-                    )
-                    .tag(1)
+                    RequestsList()
+                        .environmentObject(connectionService)
+                        .tag(1)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
             .navigationTitle("Network")
+            .navigationDestination(for: User.self) { user in
+                UserProfileView(user: user)
+            }
             .alert("Error", isPresented: $showError) {
                 Button("OK", role: .cancel) { }
             } message: {
@@ -73,70 +55,31 @@ struct ConnectionsView: View {
             showError = true
         }
     }
-    
-    private func handleRequest(_ request: ConnectionRequest, accept: Bool) {
-        Task {
-            do {
-                try await connectionService.handleConnectionRequest(request, accept: accept)
-            } catch {
-                errorMessage = error.localizedDescription
-                showError = true
-            }
-        }
-    }
 }
 
 // MARK: - Supporting Views
 private struct ConnectionsList: View {
-    let connections: [User]
     @EnvironmentObject var connectionService: ConnectionService
-    @Binding var errorMessage: String
-    @Binding var showError: Bool
     
     var body: some View {
-        if connections.isEmpty {
-            ContentUnavailableView(
-                "No Connections",
-                systemImage: "person.2.slash",
-                description: Text("Connect with others to grow your network")
-            )
-        } else {
-            List(connections) { user in
-                NavigationLink(destination: UserProfileView(user: user)) {
-                    HStack {
-                        Circle()
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(width: 40, height: 40)
-                            .overlay(
-                                Text(String(user.username.prefix(1).uppercased()))
-                                    .font(.headline)
-                                    .foregroundColor(.gray)
-                            )
-                        
-                        VStack(alignment: .leading) {
-                            Text("@\(user.username)")
-                                .font(.headline)
-                            if let card = user.card {
-                                Text(card.title)
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                            }
-                        }
+        NavigationStack {
+            if connectionService.connections.isEmpty {
+                ContentUnavailableView(
+                    "No Connections",
+                    systemImage: "person.2.slash",
+                    description: Text("Connect with others to grow your network")
+                )
+            } else {
+                List(connectionService.connections) { user in
+                    NavigationLink(value: user) {
+                        UserRow(user: user)
+                    }
+                    .swipeActions(edge: .trailing) {
+                        DisconnectButton(userId: user.id)
                     }
                 }
-                .swipeActions(edge: .trailing) {
-                    Button(role: .destructive) {
-                        Task {
-                            do {
-                                try await connectionService.removeConnection(with: user.id)
-                            } catch {
-                                errorMessage = error.localizedDescription
-                                showError = true
-                            }
-                        }
-                    } label: {
-                        Label("Disconnect", systemImage: "person.badge.minus")
-                    }
+                .navigationDestination(for: User.self) { user in
+                    UserProfileView(user: user)
                 }
             }
         }
@@ -144,78 +87,146 @@ private struct ConnectionsList: View {
 }
 
 private struct RequestsList: View {
-    let requests: [ConnectionRequest]
-    let onAccept: (ConnectionRequest) -> Void
-    let onReject: (ConnectionRequest) -> Void
+    @EnvironmentObject var connectionService: ConnectionService
     
     var body: some View {
-        if requests.isEmpty {
+        if connectionService.pendingRequests.isEmpty {
             ContentUnavailableView(
-                "No Pending Requests",
+                "No Requests",
                 systemImage: "person.crop.circle.badge.questionmark",
                 description: Text("You don't have any connection requests")
             )
         } else {
-            List(requests) { request in
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("@\(request.fromUsername)")
-                        .font(.headline)
-                    
-                    Text("Wants to connect with you")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                    
-                    HStack {
-                        Button(action: { onAccept(request) }) {
-                            Text("Accept")
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
-                                .background(Color.blue)
-                                .foregroundColor(.white)
-                                .cornerRadius(8)
-                        }
-                        
-                        Button(action: { onReject(request) }) {
-                            Text("Decline")
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
-                                .background(Color.gray.opacity(0.2))
-                                .foregroundColor(.primary)
-                                .cornerRadius(8)
-                        }
-                    }
-                }
-                .padding(.vertical, 4)
+            List(connectionService.pendingRequests) { request in
+                RequestRow(request: request)
             }
         }
     }
 }
 
-private struct TabButton: View {
+// MARK: - Reusable Components
+struct RequestRow: View {
+    let request: ConnectionRequest
+    @EnvironmentObject var connectionService: ConnectionService
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("@\(request.fromUsername)")
+                .font(.headline)
+            
+            Text("Wants to connect with you")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+            
+            HStack(spacing: 12) {
+                ActionButton(title: "Accept", style: .primary) {
+                    handleRequest(accept: true)
+                }
+                
+                ActionButton(title: "Decline", style: .secondary) {
+                    handleRequest(accept: false)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+    
+    private func handleRequest(accept: Bool) {
+        Task {
+            try? await connectionService.handleConnectionRequest(request, accept: accept)
+        }
+    }
+}
+
+struct DisconnectButton: View {
+    let userId: String
+    @EnvironmentObject var connectionService: ConnectionService
+    
+    var body: some View {
+        Button(role: .destructive) {
+            Task {
+                try? await connectionService.removeConnection(with: userId)
+            }
+        } label: {
+            Label("Disconnect", systemImage: "person.badge.minus")
+        }
+    }
+}
+
+struct ActionButton: View {
     let title: String
-    let isSelected: Bool
+    let style: ButtonStyle
     let action: () -> Void
-    @Namespace private var namespace
+    
+    enum ButtonStyle {
+        case primary, secondary
+        
+        var background: Color {
+            switch self {
+            case .primary: return .blue
+            case .secondary: return .gray.opacity(0.2)
+            }
+        }
+        
+        var foreground: Color {
+            switch self {
+            case .primary: return .white
+            case .secondary: return .primary
+            }
+        }
+    }
     
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(.headline, design: .rounded))
-                .padding(.vertical, 12)
                 .frame(maxWidth: .infinity)
-                .foregroundColor(isSelected ? .primary : .gray)
+                .padding(.vertical, 8)
+                .background(style.background)
+                .foregroundColor(style.foreground)
+                .cornerRadius(8)
         }
-        .background(
-            VStack {
-                Spacer()
-                if isSelected {
-                    Color.blue
-                        .frame(height: 2)
-                        .matchedGeometryEffect(id: "tab", in: namespace)
-                } else {
-                    Color.clear.frame(height: 2)
+    }
+}
+
+struct CustomSegmentedControl: View {
+    @Binding var selection: Int
+    let items: [Item]
+    @Namespace private var namespace
+    
+    struct Item {
+        let title: String
+        let count: Int
+        
+        var displayText: String {
+            "\(title) (\(count))"
+        }
+    }
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(items.indices, id: \.self) { index in
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        selection = index
+                    }
+                } label: {
+                    Text(items[index].displayText)
+                        .font(.system(.headline, design: .rounded))
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity)
+                        .foregroundColor(selection == index ? .primary : .gray)
                 }
+                .background(
+                    VStack {
+                        Spacer()
+                        if selection == index {
+                            Color.blue
+                                .frame(height: 2)
+                                .matchedGeometryEffect(id: "tab", in: namespace)
+                        }
+                    }
+                )
             }
-        )
+        }
     }
 } 

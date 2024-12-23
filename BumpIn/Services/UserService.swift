@@ -1,12 +1,15 @@
 import FirebaseFirestore
 import FirebaseAuth
 
+@MainActor
 class UserService: ObservableObject {
     private let db = Firestore.firestore()
     @Published var currentUser: User?
     @Published var searchResults: [User] = []
     @Published var isSearching = false
     @Published var blockedUsers: Set<String> = []
+    
+    private let cache = CacheManager.shared
     
     // Username validation rules
     private struct UsernameRules {
@@ -153,14 +156,34 @@ class UserService: ObservableObject {
             .limit(to: 20)
             .getDocuments()
         
-        let users = try snapshot.documents.compactMap { doc -> User? in
+        var users: [User] = []
+        for doc in snapshot.documents {
+            // Check cache first
+            if let cachedUser = await cache.getCachedUser(id: doc.documentID) {
+                users.append(cachedUser)
+                continue
+            }
+            
             let data = try JSONSerialization.data(withJSONObject: doc.data())
             var user = try JSONDecoder().decode(User.self, from: data)
             
             // Don't show current user or blocked users in search results
-            guard user.id != currentUser?.id && !blockedUsers.contains(user.id) else { return nil }
+            guard user.id != currentUser?.id && !blockedUsers.contains(user.id) else {
+                continue
+            }
             
-            return user
+            // Fetch user's card
+            if let cardDoc = try? await db.collection("cards")
+                .document(user.id)
+                .getDocument(),
+                let cardData = cardDoc.data() {
+                let cardJsonData = try JSONSerialization.data(withJSONObject: cardData)
+                user.card = try JSONDecoder().decode(BusinessCard.self, from: cardJsonData)
+            }
+            
+            // Cache the user
+            await cache.cacheUser(user)
+            users.append(user)
         }
         
         await MainActor.run {
