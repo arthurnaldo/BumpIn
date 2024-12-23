@@ -48,11 +48,19 @@ struct MainView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            homeView
-                .tabItem {
-                    Label("Home", systemImage: "house.fill")
-                }
-                .tag(0)
+            NavigationView {
+                homeView
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            NotificationButton()
+                                .environmentObject(connectionService)
+                        }
+                    }
+            }
+            .tabItem {
+                Label("Home", systemImage: "house.fill")
+            }
+            .tag(0)
             
             NavigationView {
                 if let existingCard = cardService.userCard {
@@ -76,7 +84,7 @@ struct MainView: View {
             SearchView()
                 .environmentObject(userService)
                 .tabItem {
-                    Label("Search", systemImage: "magnifyingglass")
+                    Label("Match", systemImage: "sparkles")
                 }
                 .tag(3)
             
@@ -268,6 +276,33 @@ struct MainView: View {
                 .padding()
             }
             .navigationTitle("Contacts")
+        }
+    }
+    
+    struct NotificationButton: View {
+        @EnvironmentObject var connectionService: ConnectionService
+        @State private var showNotifications = false
+        
+        var body: some View {
+            Button {
+                showNotifications = true
+            } label: {
+                Image(systemName: "bell.fill")
+                    .overlay(
+                        Group {
+                            if !connectionService.pendingRequests.isEmpty {
+                                Circle()
+                                    .fill(.red)
+                                    .frame(width: 8, height: 8)
+                                    .offset(x: 6, y: -6)
+                            }
+                        }
+                    )
+            }
+            .sheet(isPresented: $showNotifications) {
+                NotificationView()
+                    .environmentObject(connectionService)
+            }
         }
     }
 }

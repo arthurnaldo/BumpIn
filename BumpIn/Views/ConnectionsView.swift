@@ -8,29 +8,8 @@ struct ConnectionsView: View {
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Segmented control
-                CustomSegmentedControl(
-                    selection: $selectedTab,
-                    items: [
-                        .init(title: "Connections", count: connectionService.connections.count),
-                        .init(title: "Requests", count: connectionService.pendingRequests.count)
-                    ]
-                )
-                .padding(.horizontal)
-                
-                // Content
-                TabView(selection: $selectedTab) {
-                    ConnectionsList()
-                        .environmentObject(connectionService)
-                        .tag(0)
-                    
-                    RequestsList()
-                        .environmentObject(connectionService)
-                        .tag(1)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-            }
+            ConnectionsList()
+                .environmentObject(connectionService)
             .navigationTitle("Network")
             .navigationDestination(for: User.self) { user in
                 UserProfileView(user: user)
@@ -49,7 +28,6 @@ struct ConnectionsView: View {
     private func fetchData() async {
         do {
             try await connectionService.fetchConnections()
-            try await connectionService.fetchPendingRequests()
         } catch {
             errorMessage = error.localizedDescription
             showError = true
@@ -82,58 +60,6 @@ private struct ConnectionsList: View {
                     UserProfileView(user: user)
                 }
             }
-        }
-    }
-}
-
-private struct RequestsList: View {
-    @EnvironmentObject var connectionService: ConnectionService
-    
-    var body: some View {
-        if connectionService.pendingRequests.isEmpty {
-            ContentUnavailableView(
-                "No Requests",
-                systemImage: "person.crop.circle.badge.questionmark",
-                description: Text("You don't have any connection requests")
-            )
-        } else {
-            List(connectionService.pendingRequests) { request in
-                RequestRow(request: request)
-            }
-        }
-    }
-}
-
-// MARK: - Reusable Components
-struct RequestRow: View {
-    let request: ConnectionRequest
-    @EnvironmentObject var connectionService: ConnectionService
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("@\(request.fromUsername)")
-                .font(.headline)
-            
-            Text("Wants to connect with you")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-            
-            HStack(spacing: 12) {
-                ActionButton(title: "Accept", style: .primary) {
-                    handleRequest(accept: true)
-                }
-                
-                ActionButton(title: "Decline", style: .secondary) {
-                    handleRequest(accept: false)
-                }
-            }
-        }
-        .padding(.vertical, 4)
-    }
-    
-    private func handleRequest(accept: Bool) {
-        Task {
-            try? await connectionService.handleConnectionRequest(request, accept: accept)
         }
     }
 }
@@ -184,49 +110,6 @@ struct ActionButton: View {
                 .background(style.background)
                 .foregroundColor(style.foreground)
                 .cornerRadius(8)
-        }
-    }
-}
-
-struct CustomSegmentedControl: View {
-    @Binding var selection: Int
-    let items: [Item]
-    @Namespace private var namespace
-    
-    struct Item {
-        let title: String
-        let count: Int
-        
-        var displayText: String {
-            "\(title) (\(count))"
-        }
-    }
-    
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(items.indices, id: \.self) { index in
-                Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        selection = index
-                    }
-                } label: {
-                    Text(items[index].displayText)
-                        .font(.system(.headline, design: .rounded))
-                        .padding(.vertical, 12)
-                        .frame(maxWidth: .infinity)
-                        .foregroundColor(selection == index ? .primary : .gray)
-                }
-                .background(
-                    VStack {
-                        Spacer()
-                        if selection == index {
-                            Color.blue
-                                .frame(height: 2)
-                                .matchedGeometryEffect(id: "tab", in: namespace)
-                        }
-                    }
-                )
-            }
         }
     }
 } 

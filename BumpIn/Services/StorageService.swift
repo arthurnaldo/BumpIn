@@ -58,8 +58,8 @@ class StorageService: ObservableObject {
         let timestamp = Int(Date().timeIntervalSince1970)
         let filename = "\(userId)_\(timestamp).jpg"
         
-        // Create the storage reference directly with the full path
-        let fullPath = "profile_images/\(filename)"
+        // Use consistent path structure
+        let fullPath = "card_profile_pictures/\(filename)"
         let imageRef = storage.reference(withPath: fullPath)
         
         print("Storage reference details:")
@@ -118,22 +118,32 @@ class StorageService: ObservableObject {
                 return cachedImage
             }
             
-            // Handle both gs:// and https:// URLs
-            let storageRef: StorageReference
-            if url.hasPrefix("gs://") {
-                storageRef = storage.reference(forURL: url)
-            } else {
-                storageRef = storage.reference(withPath: url)
+            // Extract the file path from the URL
+            guard let fileURL = URL(string: url),
+                  let _ = fileURL.host,
+                  let path = fileURL.path.components(separatedBy: "/o/").last?.removingPercentEncoding else {
+                print("❌ Invalid URL format: \(url)")
+                return nil
             }
+            
+            // Remove query parameters if they exist
+            let cleanPath = path.components(separatedBy: "?").first ?? path
+            
+            // Create storage reference
+            let storageRef = storage.reference().child(cleanPath)
+            print("📁 Attempting to load image from path: \(cleanPath)")
             
             let data = try await storageRef.data(maxSize: 4 * 1024 * 1024)
             if let image = UIImage(data: data) {
                 imageCache.setObject(image, forKey: url as NSString)
+                print("✅ Successfully loaded and cached image")
                 return image
             }
+            print("⚠️ Failed to create image from data")
             return nil
         } catch {
-            print("Error loading image: \(error.localizedDescription)")
+            print("❌ Error loading image: \(error.localizedDescription)")
+            print("🔍 Attempted URL: \(url)")
             return nil
         }
     }

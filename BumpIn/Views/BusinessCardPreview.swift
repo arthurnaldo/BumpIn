@@ -48,11 +48,21 @@ struct BusinessCardPreview: View {
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.backgroundStyle)
             .task {
                 if let imageURL = card.profilePictureURL {
+                    print("🖼️ Loading profile image from URL: \(imageURL)")
                     do {
-                        profileImage = try await storageService.loadProfileImage(from: imageURL)
+                        if let image = try await storageService.loadProfileImage(from: imageURL) {
+                            print("✅ Successfully loaded profile image")
+                            await MainActor.run {
+                                profileImage = image
+                            }
+                        } else {
+                            print("⚠️ Failed to load profile image - returned nil")
+                        }
                     } catch {
-                        print("Error loading profile image: \(error.localizedDescription)")
+                        print("❌ Error loading profile image: \(error.localizedDescription)")
                     }
+                } else {
+                    print("ℹ️ No profile picture URL available")
                 }
             }
             .onAppear {
@@ -72,6 +82,7 @@ struct BusinessCardPreview: View {
     
     private var profileImageView: some View {
         let size = 60 * card.textScale
+        print("🎨 Rendering profile image view. Has image: \(selectedImage != nil || profileImage != nil)")
         return Group {
             if let image = selectedImage ?? profileImage {
                 Image(uiImage: image)
@@ -79,6 +90,8 @@ struct BusinessCardPreview: View {
                     .scaledToFill()
                     .frame(width: size, height: size)
                     .clipShape(Circle())
+                    .transition(.opacity)
+                    .onAppear { print("✨ Showing actual profile image") }
             } else {
                 Circle()
                     .fill(card.colorScheme.accentColor.opacity(0.2))
@@ -89,6 +102,8 @@ struct BusinessCardPreview: View {
                             .foregroundColor(card.colorScheme.accentColor)
                             .padding(12 * card.textScale)
                     )
+                    .transition(.opacity)
+                    .onAppear { print("⭕️ Showing placeholder image") }
             }
         }
     }
