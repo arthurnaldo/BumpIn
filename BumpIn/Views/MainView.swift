@@ -56,14 +56,8 @@ struct MainView: View {
                                 .font(.system(size: 24, weight: .bold))
                         }
                         ToolbarItem(placement: .navigationBarTrailing) {
-                            HStack(spacing: 16) {
-                                NotificationButton()
-                                    .environmentObject(connectionService)
-                                Button(action: { showSettings = true }) {
-                                    Image(systemName: "gearshape.fill")
-                                        .font(.system(size: 20))
-                                }
-                            }
+                            NotificationButton()
+                                .environmentObject(connectionService)
                         }
                     }
             }
@@ -148,63 +142,21 @@ struct MainView: View {
     private var homeView: some View {
         NavigationView {
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 16) {
-                    // Welcome Text
-                    HStack(spacing: 16) {
-                        if let card = cardService.userCard {
-                            Text("Welcome, \(card.name.components(separatedBy: " ").first ?? "")")
-                                .font(.system(size: 24, weight: .semibold))
-                        } else {
-                            Text("Welcome")
-                                .font(.system(size: 24, weight: .semibold))
-                        }
-                        Spacer()
-                    }
-                    .padding(.horizontal)
-                    
-                    // Card Section
+                VStack(spacing: 8) {
                     if let card = cardService.userCard {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text("Your Card")
                                 .font(.system(size: 20, weight: .semibold))
-                                .padding(.horizontal)
+                                .padding(.horizontal, 12)
                             
                             BusinessCardPreview(card: card, showFull: false, selectedImage: nil)
                                 .frame(height: 200)
                                 .onTapGesture {
                                     showExpandedCard = true
                                 }
-                                .padding(.horizontal)
-                            
-                            // Quick Actions
-                            HStack(spacing: 20) {
-                                Button(action: { selectedTab = 1 }) {
-                                    VStack(spacing: 6) {
-                                        Image(systemName: "pencil.circle.fill")
-                                            .font(.system(size: 28))
-                                            .foregroundColor(card.colorScheme.primary)
-                                        Text("Edit")
-                                            .font(.system(size: 12, weight: .medium))
-                                            .foregroundColor(card.colorScheme.primary)
-                                    }
-                                }
-                                
-                                Button(action: { showCardDetail = true }) {
-                                    VStack(spacing: 6) {
-                                        Image(systemName: "square.and.arrow.up")
-                                            .font(.system(size: 28))
-                                            .foregroundColor(card.colorScheme.primary)
-                                        Text("Share")
-                                            .font(.system(size: 12, weight: .medium))
-                                            .foregroundColor(card.colorScheme.primary)
-                                    }
-                                }
-                            }
-                            .padding(.horizontal)
-                            .padding(.vertical, 12)
+                                .padding(.horizontal, 12)
                         }
                     } else {
-                        // Create Card Button
                         Button(action: { selectedTab = 1 }) {
                             VStack(spacing: 12) {
                                 Image(systemName: "plus.circle.fill")
@@ -222,12 +174,11 @@ struct MainView: View {
                         .padding(.horizontal)
                     }
                     
-                    // Contacts Grid
                     if !cardService.contacts.isEmpty {
-                        VStack(alignment: .leading) {
+                        VStack(alignment: .leading, spacing: 8) {
                             Text("Recent Connections")
                                 .font(.system(size: 20, weight: .semibold))
-                                .padding(.horizontal)
+                                .padding(.horizontal, 12)
                             
                             LazyVGrid(columns: [
                                 GridItem(.flexible()),
@@ -237,11 +188,11 @@ struct MainView: View {
                                     ContactBox(card: card)
                                 }
                             }
-                            .padding(.horizontal)
+                            .padding(.horizontal, 12)
                         }
                     }
                 }
-                .padding(.vertical)
+                .padding(.top, 8)
             }
         }
     }
