@@ -5,18 +5,21 @@ import FirebaseAuth
 
 class StorageService: ObservableObject {
     private var storage: Storage
-    private let bucketURL = "gs://bumpin-19cf2.firebasestorage.app"
+    private let bucketURL = "gs://bumpin-6de7b.firebasestorage.app"
     private let imageCache = NSCache<NSString, UIImage>()
     
     init() {
-        self.storage = Storage.storage(url: bucketURL)
-        print("Initialized Firebase Storage with URL: \(bucketURL)")
+        self.storage = Storage.storage()
         
         let rootRef = storage.reference()
-        print("Root reference details:")
+        print("Storage initialization:")
         print("- Bucket: \(rootRef.bucket)")
-        print("- Full path: \(rootRef.fullPath)")
-        print("- Storage URL: \(rootRef.description)")
+        print("- Path: \(rootRef.fullPath)")
+    }
+    
+    private func validateStorageURL(_ url: String) -> Bool {
+        let validBucket = storage.reference().bucket
+        return url.contains(validBucket)
     }
     
     func uploadProfileImage(_ image: UIImage, userId: String) async throws -> String {
@@ -109,19 +112,30 @@ class StorageService: ObservableObject {
     }
     
     func loadProfileImage(from url: String) async throws -> UIImage? {
-        // Check cache first
-        if let cachedImage = imageCache.object(forKey: url as NSString) {
-            return cachedImage
+        do {
+            // Check cache first
+            if let cachedImage = imageCache.object(forKey: url as NSString) {
+                return cachedImage
+            }
+            
+            // Handle both gs:// and https:// URLs
+            let storageRef: StorageReference
+            if url.hasPrefix("gs://") {
+                storageRef = storage.reference(forURL: url)
+            } else {
+                storageRef = storage.reference(withPath: url)
+            }
+            
+            let data = try await storageRef.data(maxSize: 4 * 1024 * 1024)
+            if let image = UIImage(data: data) {
+                imageCache.setObject(image, forKey: url as NSString)
+                return image
+            }
+            return nil
+        } catch {
+            print("Error loading image: \(error.localizedDescription)")
+            return nil
         }
-        
-        let storageRef = storage.reference(forURL: url)
-        let data = try await storageRef.data(maxSize: 4 * 1024 * 1024)
-        if let image = UIImage(data: data) {
-            // Cache the image
-            imageCache.setObject(image, forKey: url as NSString)
-            return image
-        }
-        return nil
     }
     
     func deleteProfileImage(urlString: String) async throws {
