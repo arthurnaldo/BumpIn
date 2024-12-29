@@ -2,17 +2,65 @@ import SwiftUI
 
 struct ConnectionsView: View {
     @EnvironmentObject var connectionService: ConnectionService
+    @EnvironmentObject var userService: UserService
+    @State private var searchText = ""
     @State private var showError = false
     @State private var errorMessage = ""
-    @State private var selectedTab = 0
     
     var body: some View {
         NavigationStack {
-            ConnectionsList()
-                .environmentObject(connectionService)
+            List {
+                if searchText.isEmpty && connectionService.connections.isEmpty {
+                    ContentUnavailableView(
+                        "No Connections",
+                        systemImage: "person.2.slash",
+                        description: Text("Search to connect with others")
+                    )
+                } else if userService.isSearching {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Spacer()
+                    }
+                } else {
+                    // Show filtered results with connected users first
+                    let searchResults = searchText.isEmpty 
+                        ? connectionService.connections 
+                        : userService.searchResults
+                    
+                    ForEach(searchResults.sorted { user1, user2 in
+                        // Connected users always come first
+                        let isConnected1 = connectionService.connections.contains { $0.id == user1.id }
+                        let isConnected2 = connectionService.connections.contains { $0.id == user2.id }
+                        if isConnected1 != isConnected2 {
+                            return isConnected1
+                        }
+                        return user1.username < user2.username
+                    }) { user in
+                        NavigationLink(destination: UserProfileView(user: user)) {
+                            NetworkUserRow(
+                                user: user,
+                                showConnectionStatus: true,
+                                isConnected: connectionService.connections.contains { $0.id == user.id }
+                            )
+                        }
+                        .swipeActions(edge: .trailing) {
+                            if connectionService.connections.contains(where: { $0.id == user.id }) {
+                                DisconnectButton(userId: user.id)
+                            }
+                        }
+                    }
+                }
+            }
             .navigationTitle("Network")
-            .navigationDestination(for: User.self) { user in
-                UserProfileView(user: user)
+            .searchable(text: $searchText, prompt: "Search users")
+            .onChange(of: searchText) { _, newValue in
+                Task {
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    if searchText == newValue {
+                        try? await userService.searchUsers(query: newValue)
+                    }
+                }
             }
             .alert("Error", isPresented: $showError) {
                 Button("OK", role: .cancel) { }
@@ -36,34 +84,6 @@ struct ConnectionsView: View {
 }
 
 // MARK: - Supporting Views
-private struct ConnectionsList: View {
-    @EnvironmentObject var connectionService: ConnectionService
-    
-    var body: some View {
-        NavigationStack {
-            if connectionService.connections.isEmpty {
-                ContentUnavailableView(
-                    "No Connections",
-                    systemImage: "person.2.slash",
-                    description: Text("Connect with others to grow your network")
-                )
-            } else {
-                List(connectionService.connections) { user in
-                    NavigationLink(value: user) {
-                        UserRow(user: user)
-                    }
-                    .swipeActions(edge: .trailing) {
-                        DisconnectButton(userId: user.id)
-                    }
-                }
-                .navigationDestination(for: User.self) { user in
-                    UserProfileView(user: user)
-                }
-            }
-        }
-    }
-}
-
 struct DisconnectButton: View {
     let userId: String
     @EnvironmentObject var connectionService: ConnectionService
@@ -75,41 +95,6 @@ struct DisconnectButton: View {
             }
         } label: {
             Label("Disconnect", systemImage: "person.badge.minus")
-        }
-    }
-}
-
-struct ActionButton: View {
-    let title: String
-    let style: ButtonStyle
-    let action: () -> Void
-    
-    enum ButtonStyle {
-        case primary, secondary
-        
-        var background: Color {
-            switch self {
-            case .primary: return .blue
-            case .secondary: return .gray.opacity(0.2)
-            }
-        }
-        
-        var foreground: Color {
-            switch self {
-            case .primary: return .white
-            case .secondary: return .primary
-            }
-        }
-    }
-    
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .background(style.background)
-                .foregroundColor(style.foreground)
-                .cornerRadius(8)
         }
     }
 } 

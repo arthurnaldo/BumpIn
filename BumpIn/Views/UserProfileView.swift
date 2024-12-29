@@ -4,7 +4,7 @@ import FirebaseAuth
 
 struct UserProfileView: View {
     let user: User
-    @StateObject private var connectionService = ConnectionService()
+    @EnvironmentObject var connectionService: ConnectionService
     @State private var isConnected = false
     @State private var hasRequestPending = false
     @State private var hasIncomingRequest = false
@@ -12,6 +12,7 @@ struct UserProfileView: View {
     @State private var errorMessage = ""
     @State private var isLoading = false
     @State private var showFullCard = false
+    @State private var showDisconnectConfirmation = false
     
     var body: some View {
         ScrollView {
@@ -80,7 +81,46 @@ struct UserProfileView: View {
                         // Action Buttons
                         HStack(spacing: 12) {
                             // Connect/Following Button
-                            Button(action: handleConnectionAction) {
+                            Button(action: {
+                                print("👆 Button tapped! isConnected = \(isConnected), hasRequestPending = \(hasRequestPending)")
+                                if isConnected {
+                                    // Handle disconnect
+                                    isLoading = true
+                                    Task {
+                                        do {
+                                            try await connectionService.removeConnection(with: user.id)
+                                            isConnected = false
+                                            hasRequestPending = false
+                                            hasIncomingRequest = false
+                                            await checkStatus()
+                                        } catch {
+                                            errorMessage = error.localizedDescription
+                                            showError = true
+                                        }
+                                        isLoading = false
+                                    }
+                                } else if hasRequestPending {
+                                    // Handle canceling request
+                                    isLoading = true
+                                    Task {
+                                        do {
+                                            try await connectionService.cancelConnectionRequest(to: user.id)
+                                            hasRequestPending = false
+                                            isConnected = false
+                                            hasIncomingRequest = false
+                                            await checkStatus()
+                                            print("✅ Successfully canceled request!")
+                                        } catch {
+                                            errorMessage = error.localizedDescription
+                                            showError = true
+                                            print("❌ Cancel request failed: \(error.localizedDescription)")
+                                        }
+                                        isLoading = false
+                                    }
+                                } else {
+                                    handleConnectionAction()
+                                }
+                            }) {
                                 HStack {
                                     if isLoading {
                                         ProgressView()
@@ -101,7 +141,7 @@ struct UserProfileView: View {
                                         .stroke(buttonBackground == .clear ? Color.gray : Color.clear, lineWidth: 1)
                                 )
                             }
-                            .disabled(isLoading || hasRequestPending)
+                            .buttonStyle(PlainButtonStyle())
                             
                             // Message Button
                             Button(action: {
@@ -197,6 +237,30 @@ struct UserProfileView: View {
         } message: {
             Text(errorMessage)
         }
+        .confirmationDialog(
+            "Disconnect from @\(user.username)?",
+            isPresented: $showDisconnectConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Disconnect", role: .destructive) {
+                isLoading = true
+                Task {
+                    do {
+                        try await connectionService.removeConnection(with: user.id)
+                        isConnected = false
+                        showDisconnectConfirmation = false
+                        await checkStatus()
+                    } catch {
+                        errorMessage = error.localizedDescription
+                        showError = true
+                    }
+                    isLoading = false
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("You will need to send a new connection request to reconnect.")
+        }
         .sheet(isPresented: $showFullCard) {
             if let card = user.card {
                 CardDetailView(card: card, selectedImage: nil)
@@ -259,7 +323,12 @@ struct UserProfileView: View {
     }
     
     private func checkStatus() async {
-        guard let currentUser = Auth.auth().currentUser else { return }
+        guard let currentUser = Auth.auth().currentUser else {
+            print("❌ No current user")
+            return 
+        }
+        
+        print("🔍 Checking connection status for user: \(user.id)")
         
         do {
             async let connectionCheck = Firestore.firestore()
@@ -281,7 +350,14 @@ struct UserProfileView: View {
             isConnected = connection.exists
             hasRequestPending = hasPending
             hasIncomingRequest = hasIncoming
+            
+            print("✅ Status check complete:")
+            print("- isConnected: \(isConnected)")
+            print("- hasRequestPending: \(hasRequestPending)")
+            print("- hasIncomingRequest: \(hasIncomingRequest)")
+            
         } catch {
+            print("❌ Error checking status: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
             showError = true
         }
@@ -293,17 +369,26 @@ struct UserProfileView: View {
             do {
                 if isConnected {
                     try await connectionService.removeConnection(with: user.id)
+                    // Reset ALL states when disconnecting
                     isConnected = false
+                    hasRequestPending = false
+                    hasIncomingRequest = false
                 } else if hasIncomingRequest {
                     if let request = try await connectionService.findPendingRequest(from: user.id) {
                         try await connectionService.handleConnectionRequest(request, accept: true)
                         isConnected = true
                         hasIncomingRequest = false
+                        hasRequestPending = false
                     }
                 } else {
                     try await connectionService.sendConnectionRequest(to: user)
                     hasRequestPending = true
+                    isConnected = false
+                    hasIncomingRequest = false
                 }
+                
+                await checkStatus()
+                
             } catch {
                 errorMessage = error.localizedDescription
                 showError = true

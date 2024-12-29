@@ -277,6 +277,48 @@ class ConnectionService: ObservableObject {
         return try JSONDecoder().decode(ConnectionRequest.self, from: data)
     }
     
+    func cancelConnectionRequest(to userId: String) async throws {
+        guard let currentUser = Auth.auth().currentUser else { throw AuthError.notAuthenticated }
+        
+        // Find and delete the request from recipient's requests
+        let recipientRequests = try await db.collection("users")
+            .document(userId)
+            .collection("connectionRequests")
+            .whereField("fromUserId", isEqualTo: currentUser.uid)
+            .whereField("status", isEqualTo: ConnectionRequest.RequestStatus.pending.rawValue)
+            .getDocuments()
+        
+        // Find and delete the request from sender's sent requests
+        let senderRequests = try await db.collection("users")
+            .document(currentUser.uid)
+            .collection("sentRequests")
+            .whereField("toUserId", isEqualTo: userId)
+            .whereField("status", isEqualTo: ConnectionRequest.RequestStatus.pending.rawValue)
+            .getDocuments()
+        
+        let batch = db.batch()
+        
+        // Delete from recipient's requests
+        for doc in recipientRequests.documents {
+            let ref = db.collection("users")
+                .document(userId)
+                .collection("connectionRequests")
+                .document(doc.documentID)
+            batch.deleteDocument(ref)
+        }
+        
+        // Delete from sender's sent requests
+        for doc in senderRequests.documents {
+            let ref = db.collection("users")
+                .document(currentUser.uid)
+                .collection("sentRequests")
+                .document(doc.documentID)
+            batch.deleteDocument(ref)
+        }
+        
+        try await batch.commit()
+    }
+    
     enum ConnectionError: LocalizedError {
         case requestAlreadyExists
         case requestNotFound

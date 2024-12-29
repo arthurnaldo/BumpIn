@@ -78,19 +78,13 @@ struct MainView: View {
             }
             .tag(1)
             
-            SearchView()
-                .environmentObject(userService)
-                .tabItem {
-                    Label("Match", systemImage: "sparkles")
-                }
-                .tag(2)
-            
             ConnectionsView()
                 .environmentObject(connectionService)
+                .environmentObject(userService)
                 .tabItem {
                     Label("Network", systemImage: "person.2.fill")
                 }
-                .tag(3)
+                .tag(2)
             
             SettingsView()
                 .environmentObject(userService)
@@ -98,7 +92,7 @@ struct MainView: View {
                 .tabItem {
                     Label("Profile", systemImage: "person.circle.fill")
                 }
-                .tag(4)
+                .tag(3)
         }
         .tint(Color(red: 0.1, green: 0.3, blue: 0.5))
         .preferredColorScheme(isDarkMode ? .dark : .light)
