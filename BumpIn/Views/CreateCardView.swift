@@ -56,7 +56,6 @@ struct CreateCardView: View {
     @State private var showAlert = false
     @State private var alertMessage = ""
     @State private var isLoading = false
-    @State private var showFullPreview = false
     @State private var showImagePicker = false
     @State private var selectedImage: UIImage?
     @State private var selectedRole: PersonRole = .professional
@@ -148,9 +147,6 @@ struct CreateCardView: View {
         .sheet(isPresented: $showImagePicker) {
             ImagePicker(image: $selectedImage, sourceType: .photoLibrary)
         }
-        .sheet(isPresented: $showFullPreview) {
-            CardPreviewSheet(businessCard: businessCard, selectedImage: selectedImage, showFullPreview: $showFullPreview)
-        }
         .alert("Business Card", isPresented: $showAlert) {
             Button("OK") {
                 if !alertMessage.contains("Error") {
@@ -171,33 +167,22 @@ struct CreateCardView: View {
     
     private var cardPreviewSection: some View {
         VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Text("Preview")
-                    .font(.headline)
-                    .foregroundColor(.gray)
-                
-                Spacer()
-                
-                Button(action: {
-                    showFullPreview = true
-                }) {
-                    HStack(spacing: 4) {
-                        Text("View Full")
-                        Image(systemName: "arrow.up.left.and.arrow.down.right")
-                    }
-                    .font(.subheadline)
-                    .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
-                }
-            }
-            .padding(.horizontal)
+            Text("Preview")
+                .font(.headline)
+                .foregroundColor(.gray)
+                .padding(.horizontal)
             
-            CardPreviewContainer(businessCard: businessCard, selectedImage: selectedImage)
-                .frame(height: 286)
+            BusinessCardPreview(card: businessCard, showFull: false, selectedImage: selectedImage)
+                .frame(height: CardDimensions.previewHeight)
+                .padding(.horizontal, CardDimensions.horizontalPadding)
         }
         .padding(.vertical, 20)
         .background(Color(uiColor: .systemGray6))
-        .cornerRadius(15)
-        .shadow(color: .black.opacity(0.05), radius: 5)
+        .cornerRadius(CardDimensions.cornerRadius)
+        .shadow(
+            color: .black.opacity(CardDimensions.shadowOpacity),
+            radius: CardDimensions.shadowRadius
+        )
         .padding(.horizontal)
     }
     

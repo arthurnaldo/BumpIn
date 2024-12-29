@@ -9,7 +9,6 @@ struct SettingsView: View {
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var isLoading = false
-    @State private var showFullCard = false
     @State private var showSettingsMenu = false
     
     var body: some View {
@@ -91,22 +90,12 @@ struct SettingsView: View {
                                     .font(.title3.bold())
                                 
                                 Spacer()
-                                
-                                Button {
-                                    showFullCard = true
-                                } label: {
-                                    Label("View Full", systemImage: "arrow.up.forward.square")
-                                        .font(.subheadline)
-                                }
                             }
-                            .padding(.horizontal)
+                            .padding(.horizontal, CardDimensions.horizontalPadding)
                             
                             BusinessCardPreview(card: card, showFull: false, selectedImage: nil)
-                                .frame(height: 200)
-                                .padding(.horizontal)
-                                .onTapGesture {
-                                    showFullCard = true
-                                }
+                                .frame(height: CardDimensions.previewHeight)
+                                .padding(.horizontal, CardDimensions.horizontalPadding)
                         }
                         .padding(.vertical)
                     }
@@ -154,11 +143,6 @@ struct SettingsView: View {
                         Image(systemName: "gearshape.fill")
                             .foregroundColor(.primary)
                     }
-                }
-            }
-            .sheet(isPresented: $showFullCard) {
-                if let card = cardService.userCard {
-                    CardDetailView(card: card, selectedImage: nil)
                 }
             }
             .alert("Sign Out", isPresented: $showSignOutAlert) {
