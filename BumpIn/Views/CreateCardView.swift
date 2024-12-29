@@ -77,32 +77,18 @@ struct CreateCardView: View {
     }
     
     var body: some View {
-        ZStack {
-            Color(uiColor: .systemGroupedBackground)
-                .ignoresSafeArea()
-            
-            ScrollView {
-                VStack(spacing: 30) {
-                    // Custom Header
-                    Text(cardService.userCard == nil ? "Create Business Card" : "Edit Business Card")
-                        .font(.title2.bold())
-                        .foregroundColor(.primary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top)
+        ZStack(alignment: .top) {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    // Add spacing for the pinned preview
+                    Spacer()
+                        .frame(height: 280)
                     
-                    // Top Card Preview
-                    cardPreviewSection
-                        .padding(.top, -10)
-                    
-                    // Profile Picture Section
-                    profilePictureSection
-                    
-                    // Form Sections
-                    formSections
-                    
-                    // Bottom Card Preview
-                    cardPreviewSection
-                        .padding(.top, 10)
+                    // Your existing sections
+                    personalInfoSection
+                    aboutMeSection
+                    contactInfoSection
+                    cardDesignSection
                     
                     // Save Button
                     Button(action: {
@@ -124,26 +110,20 @@ struct CreateCardView: View {
                             Color(red: 0.1, green: 0.3, blue: 0.5)
                         )
                         .cornerRadius(15)
-                        .shadow(color: .black.opacity(0.1), radius: 5)
                     }
                     .disabled(isLoading || businessCard.name.isEmpty || businessCard.email.isEmpty)
                     .padding(.horizontal)
-                    .padding(.top, 10)
                 }
-                .padding(.bottom, 40)
+                .padding()
             }
-            .background(Color(uiColor: .systemGroupedBackground))
             
-            if isLoading {
-                Color.black.opacity(0.3)
-                    .ignoresSafeArea()
-                    .overlay(
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(1.5)
-                    )
-            }
+            // Your existing preview, now pinned
+            cardPreviewSection
+                .padding()
+                .background(Color(uiColor: .systemBackground))
+                .shadow(color: .black.opacity(0.1), radius: 5)
         }
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showImagePicker) {
             ImagePicker(image: $selectedImage, sourceType: .photoLibrary)
         }
@@ -188,55 +168,6 @@ struct CreateCardView: View {
             radius: CardDimensions.shadowRadius
         )
         .padding(.horizontal)
-    }
-    
-    private var formSections: some View {
-        VStack(spacing: 25) {
-            roleSelector
-            personalInfoSection
-            aboutMeSection
-            contactInfoSection
-            cardDesignSection
-        }
-        .padding(.horizontal)
-    }
-    
-    private var roleSelector: some View {
-        FormSection(title: "I am a...") {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 15) {
-                    ForEach(PersonRole.allCases, id: \.self) { role in
-                        Button(action: {
-                            selectedRole = role
-                            // Clear existing title and company when role changes
-                            businessCard.title = ""
-                            businessCard.company = ""
-                        }) {
-                            VStack(spacing: 8) {
-                                Image(systemName: role.icon)
-                                    .font(.system(size: 24))
-                                    .foregroundColor(selectedRole == role ? .white : .gray)
-                                    .frame(width: 50, height: 50)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .fill(selectedRole == role ? 
-                                                Color(red: 0.1, green: 0.3, blue: 0.5) : 
-                                                Color.gray.opacity(0.1))
-                                    )
-                                
-                                Text(role.rawValue)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .multilineTextAlignment(.center)
-                                    .frame(width: 80)
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal, 5)
-                .padding(.bottom, 5)
-            }
-        }
     }
     
     private var personalInfoSection: some View {

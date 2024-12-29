@@ -13,6 +13,16 @@ class ConnectionService: ObservableObject {
     func sendConnectionRequest(to user: User) async throws {
         guard let currentUser = Auth.auth().currentUser else { throw AuthError.notAuthenticated }
         
+        print("🔄 Sending connection request:")
+        print("- From user ID: \(currentUser.uid)")
+        print("- To user ID: \(user.id)")
+        
+        // Prevent self-connection
+        if currentUser.uid == user.id {
+            print("❌ Attempted to send request to self")
+            throw ConnectionError.invalidRequest
+        }
+        
         // Check if already connected
         let existingConnection = try await db.collection("users")
             .document(currentUser.uid)
@@ -21,10 +31,11 @@ class ConnectionService: ObservableObject {
             .getDocument()
         
         if existingConnection.exists {
+            print("❌ Already connected")
             throw ConnectionError.alreadyConnected
         }
         
-        // Only check outgoing requests (we sent to them)
+        // Check for existing requests
         let outgoingSnapshot = try await db.collection("users")
             .document(user.id)
             .collection("connectionRequests")
@@ -32,7 +43,10 @@ class ConnectionService: ObservableObject {
             .whereField("status", isEqualTo: ConnectionRequest.RequestStatus.pending.rawValue)
             .getDocuments()
         
+        print("📝 Existing requests found: \(outgoingSnapshot.documents.count)")
+        
         if !outgoingSnapshot.documents.isEmpty {
+            print("❌ Request already exists")
             throw ConnectionError.requestAlreadyExists
         }
         
@@ -40,8 +54,12 @@ class ConnectionService: ObservableObject {
         let senderDoc = try await db.collection("users").document(currentUser.uid).getDocument()
         guard let senderData = senderDoc.data(),
               let senderUsername = senderData["username"] as? String else {
+            print("❌ Could not get sender username")
             throw ConnectionError.invalidRequest
         }
+        
+        print("👤 Sender username: \(senderUsername)")
+        print("👥 Recipient username: \(user.username)")
         
         // Create the request
         let request = ConnectionRequest(
@@ -54,8 +72,11 @@ class ConnectionService: ObservableObject {
             timestamp: Date()
         )
         
+        print("📨 Created request: \(request.id)")
+        
         let requestData = try JSONEncoder().encode(request)
         guard let dict = try JSONSerialization.jsonObject(with: requestData) as? [String: Any] else {
+            print("❌ Failed to encode request")
             throw ConnectionError.invalidRequest
         }
         
@@ -77,10 +98,11 @@ class ConnectionService: ObservableObject {
         batch.setData(dict, forDocument: senderRef)
         
         try await batch.commit()
+        print("✅ Request saved successfully")
         
-        // Update local state
+        // Instead, add to sentRequests
         await MainActor.run {
-            self.pendingRequests.append(request)
+            self.sentRequests.append(request)
         }
     }
     
@@ -212,24 +234,43 @@ class ConnectionService: ObservableObject {
         
         let batch = db.batch()
         
-        // Remove connection from current user's connections
-        let userConnectionRef = db.collection("users")
-            .document(currentUser.uid)
-            .collection("connections")
-            .document(userId)
-        batch.deleteDocument(userConnectionRef)
+        // Delete connection documents for both users
+        let currentUserRef = db.collection("users").document(currentUser.uid).collection("connections").document(userId)
+        let otherUserRef = db.collection("users").document(userId).collection("connections").document(currentUser.uid)
         
-        // Remove connection from other user's connections
-        let otherUserConnectionRef = db.collection("users")
-            .document(userId)
-            .collection("connections")
-            .document(currentUser.uid)
-        batch.deleteDocument(otherUserConnectionRef)
+        // Delete any pending requests between the users
+        let currentUserRequests = db.collection("users").document(currentUser.uid).collection("connectionRequests")
+        let otherUserRequests = db.collection("users").document(userId).collection("connectionRequests")
         
+        // Get all requests between these users
+        let outgoingSnapshot = try await currentUserRequests
+            .whereField("fromUserId", isEqualTo: userId)
+            .getDocuments()
+        
+        let incomingSnapshot = try await otherUserRequests
+            .whereField("fromUserId", isEqualTo: currentUser.uid)
+            .getDocuments()
+        
+        // Delete connections
+        batch.deleteDocument(currentUserRef)
+        batch.deleteDocument(otherUserRef)
+        
+        // Delete all requests
+        for doc in outgoingSnapshot.documents {
+            batch.deleteDocument(doc.reference)
+        }
+        for doc in incomingSnapshot.documents {
+            batch.deleteDocument(doc.reference)
+        }
+        
+        // Commit all changes
         try await batch.commit()
         
-        // Refresh connections list
-        try await fetchConnections()
+        // Update local state
+        await MainActor.run {
+            connections.removeAll { $0.id == userId }
+            pendingRequests.removeAll { $0.fromUserId == userId || $0.toUserId == userId }
+        }
     }
     
     func hasPendingRequest(for userId: String) async throws -> Bool {
@@ -314,14 +355,17 @@ class ConnectionService: ObservableObject {
     
     func startRequestsListener() {
         guard let currentUser = Auth.auth().currentUser else { return }
+        print("🎧 Starting requests listener for user: \(currentUser.uid)")
         
         // Remove existing listener if any
         requestsListener?.remove()
         
-        // Listen for incoming requests
+        // Listen for incoming requests only
         requestsListener = db.collection("users")
             .document(currentUser.uid)
             .collection("connectionRequests")
+            .whereField("toUserId", isEqualTo: currentUser.uid)
+            .whereField("fromUserId", isNotEqualTo: currentUser.uid)
             .whereField("status", isEqualTo: ConnectionRequest.RequestStatus.pending.rawValue)
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let snapshot = snapshot else {
@@ -332,10 +376,18 @@ class ConnectionService: ObservableObject {
                 do {
                     let requests = try snapshot.documents.compactMap { doc -> ConnectionRequest? in
                         let data = try JSONSerialization.data(withJSONObject: doc.data())
-                        return try JSONDecoder().decode(ConnectionRequest.self, from: data)
+                        let request = try JSONDecoder().decode(ConnectionRequest.self, from: data)
+                        
+                        // Double check we're not including self-requests
+                        guard request.fromUserId != currentUser.uid else {
+                            print("⚠️ Filtered out self-request")
+                            return nil
+                        }
+                        
+                        return request
                     }
                     
-                    print("📬 Found \(requests.count) pending requests")
+                    print("📬 Found \(requests.count) pending incoming requests")
                     self?.pendingRequests = requests
                 } catch {
                     print("❌ Error decoding requests: \(error.localizedDescription)")

@@ -10,6 +10,7 @@ struct UserProfileView: View {
     @State private var hasIncomingRequest = false
     @State private var isLoading = false
     @State private var showDisconnectConfirmation = false
+    @State private var showUnfollowAlert = false
     
     var body: some View {
         ScrollView {
@@ -79,21 +80,7 @@ struct UserProfileView: View {
                         Button(action: {
                             print("👆 Button tapped! isConnected = \(isConnected), hasRequestPending = \(hasRequestPending)")
                             if isConnected {
-                                // Handle disconnect
-                                isLoading = true
-                                Task {
-                                    do {
-                                        try await connectionService.removeConnection(with: user.id)
-                                        isConnected = false
-                                        hasRequestPending = false
-                                        hasIncomingRequest = false
-                                        print("✅ Successfully disconnected")
-                                        await checkStatus()  // Refresh status after disconnect
-                                    } catch {
-                                        print("❌ Disconnect failed: \(error.localizedDescription)")
-                                    }
-                                    isLoading = false
-                                }
+                                showUnfollowAlert = true
                             } else if hasRequestPending {
                                 // Handle canceling request
                                 isLoading = true
@@ -256,6 +243,16 @@ struct UserProfileView: View {
             response: CardDimensions.transitionDuration,
             dampingFraction: CardDimensions.springDamping
         ), value: user.id)
+        .alert("Remove Connection?", isPresented: $showUnfollowAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Remove", role: .destructive) {
+                Task {
+                    try? await connectionService.removeConnection(with: user.id)
+                }
+            }
+        } message: {
+            Text("Are you sure you want to remove @\(user.username) from your connections?")
+        }
     }
     
     private var connectionIcon: String {
