@@ -251,6 +251,11 @@ struct UserProfileView: View {
         .task {
             await checkStatus()
         }
+        .transition(.move(edge: .trailing))
+        .animation(.spring(
+            response: CardDimensions.transitionDuration,
+            dampingFraction: CardDimensions.springDamping
+        ), value: user.id)
     }
     
     private var connectionIcon: String {

@@ -2,41 +2,56 @@ import SwiftUI
 
 struct NetworkUserRow: View {
     let user: User
-    var showConnectionStatus: Bool = false
-    var isConnected: Bool = false
+    let showConnectionStatus: Bool
+    let isConnected: Bool
     
     var body: some View {
-        HStack {
-            Circle()
-                .fill(Color.gray.opacity(0.2))
-                .frame(width: 40, height: 40)
-                .overlay(
-                    Text(String(user.username.prefix(1).uppercased()))
-                        .font(.headline)
-                        .foregroundColor(.gray)
-                )
+        HStack(spacing: 12) {
+            // Profile picture or placeholder
+            if let card = user.card, let imageURL = card.profilePictureURL {
+                AsyncImage(url: URL(string: imageURL)) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                } placeholder: {
+                    defaultProfileImage
+                }
+                .frame(width: 50, height: 50)
+                .clipShape(Circle())
+            } else {
+                defaultProfileImage
+            }
             
-            VStack(alignment: .leading) {
+            // User info
+            VStack(alignment: .leading, spacing: 4) {
                 Text("@\(user.username)")
                     .font(.headline)
                 if let card = user.card {
                     Text(card.title)
                         .font(.subheadline)
-                        .foregroundColor(.gray)
+                        .foregroundColor(.secondary)
                 }
             }
             
             Spacer()
             
+            // Connection status
             if showConnectionStatus && isConnected {
-                Text("Mutual")
-                    .font(.caption)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.blue)
-                    .cornerRadius(8)
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
             }
         }
+        .padding()
+    }
+    
+    private var defaultProfileImage: some View {
+        Circle()
+            .fill(Color.gray.opacity(0.2))
+            .frame(width: 50, height: 50)
+            .overlay(
+                Text(String(user.username.prefix(1).uppercased()))
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(.gray)
+            )
     }
 } 
