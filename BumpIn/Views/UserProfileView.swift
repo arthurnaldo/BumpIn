@@ -79,90 +79,67 @@ struct UserProfileView: View {
                         }
                         
                         // Action Buttons
-                        HStack(spacing: 12) {
-                            // Connect/Following Button
-                            Button(action: {
-                                print("👆 Button tapped! isConnected = \(isConnected), hasRequestPending = \(hasRequestPending)")
-                                if isConnected {
-                                    // Handle disconnect
-                                    isLoading = true
-                                    Task {
-                                        do {
-                                            try await connectionService.removeConnection(with: user.id)
-                                            isConnected = false
-                                            hasRequestPending = false
-                                            hasIncomingRequest = false
-                                            await checkStatus()
-                                        } catch {
-                                            errorMessage = error.localizedDescription
-                                            showError = true
-                                        }
-                                        isLoading = false
+                        Button(action: {
+                            print("👆 Button tapped! isConnected = \(isConnected), hasRequestPending = \(hasRequestPending)")
+                            if isConnected {
+                                // Handle disconnect
+                                isLoading = true
+                                Task {
+                                    do {
+                                        try await connectionService.removeConnection(with: user.id)
+                                        isConnected = false
+                                        hasRequestPending = false
+                                        hasIncomingRequest = false
+                                        await checkStatus()
+                                    } catch {
+                                        errorMessage = error.localizedDescription
+                                        showError = true
                                     }
-                                } else if hasRequestPending {
-                                    // Handle canceling request
-                                    isLoading = true
-                                    Task {
-                                        do {
-                                            try await connectionService.cancelConnectionRequest(to: user.id)
-                                            hasRequestPending = false
-                                            isConnected = false
-                                            hasIncomingRequest = false
-                                            await checkStatus()
-                                            print("✅ Successfully canceled request!")
-                                        } catch {
-                                            errorMessage = error.localizedDescription
-                                            showError = true
-                                            print("❌ Cancel request failed: \(error.localizedDescription)")
-                                        }
-                                        isLoading = false
-                                    }
-                                } else {
-                                    handleConnectionAction()
+                                    isLoading = false
                                 }
-                            }) {
-                                HStack {
-                                    if isLoading {
-                                        ProgressView()
-                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    } else {
-                                        Image(systemName: connectionIcon)
-                                        Text(buttonTitle)
-                                            .bold()
+                            } else if hasRequestPending {
+                                // Handle canceling request
+                                isLoading = true
+                                Task {
+                                    do {
+                                        try await connectionService.cancelConnectionRequest(to: user.id)
+                                        hasRequestPending = false
+                                        isConnected = false
+                                        hasIncomingRequest = false
+                                        await checkStatus()
+                                        print("✅ Successfully canceled request!")
+                                    } catch {
+                                        errorMessage = error.localizedDescription
+                                        showError = true
+                                        print("❌ Cancel request failed: \(error.localizedDescription)")
                                     }
+                                    isLoading = false
                                 }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(buttonBackground)
-                                .foregroundColor(buttonTextColor)
-                                .cornerRadius(25)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 25)
-                                        .stroke(buttonBackground == .clear ? Color.gray : Color.clear, lineWidth: 1)
-                                )
+                            } else {
+                                handleConnectionAction()
                             }
-                            .buttonStyle(PlainButtonStyle())
-                            
-                            // Message Button
-                            Button(action: {
-                                // Message functionality will be implemented later
-                            }) {
-                                HStack {
-                                    Image(systemName: "message.fill")
-                                    Text("Message")
+                        }) {
+                            HStack {
+                                if isLoading {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                } else {
+                                    Image(systemName: connectionIcon)
+                                    Text(buttonTitle)
                                         .bold()
                                 }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(Color.clear)
-                                .foregroundColor(.primary)
-                                .cornerRadius(25)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 25)
-                                        .stroke(Color.gray, lineWidth: 1)
-                                )
                             }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(buttonBackground)
+                            .foregroundColor(buttonTextColor)
+                            .cornerRadius(25)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 25)
+                                    .stroke(buttonBackground == .clear ? Color.gray : Color.clear, lineWidth: 1)
+                            )
                         }
+                        .buttonStyle(PlainButtonStyle())
                         .padding(.horizontal)
                         .padding(.top, 12)
                     }

@@ -8,6 +8,7 @@ class ConnectionService: ObservableObject {
     @Published var connections: [User] = []
     @Published var pendingRequests: [ConnectionRequest] = []
     @Published var sentRequests: [ConnectionRequest] = []
+    private var requestsListener: ListenerRegistration?
     
     func sendConnectionRequest(to user: User) async throws {
         guard let currentUser = Auth.auth().currentUser else { throw AuthError.notAuthenticated }
@@ -317,6 +318,42 @@ class ConnectionService: ObservableObject {
         }
         
         try await batch.commit()
+    }
+    
+    func startRequestsListener() {
+        guard let currentUser = Auth.auth().currentUser else { return }
+        
+        // Remove existing listener if any
+        requestsListener?.remove()
+        
+        // Listen for incoming requests
+        requestsListener = db.collection("users")
+            .document(currentUser.uid)
+            .collection("connectionRequests")
+            .whereField("status", isEqualTo: ConnectionRequest.RequestStatus.pending.rawValue)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let snapshot = snapshot else {
+                    print("❌ Error fetching requests: \(error?.localizedDescription ?? "unknown error")")
+                    return
+                }
+                
+                do {
+                    let requests = try snapshot.documents.compactMap { doc -> ConnectionRequest? in
+                        let data = try JSONSerialization.data(withJSONObject: doc.data())
+                        return try JSONDecoder().decode(ConnectionRequest.self, from: data)
+                    }
+                    
+                    print("📬 Found \(requests.count) pending requests")
+                    self?.pendingRequests = requests
+                } catch {
+                    print("❌ Error decoding requests: \(error.localizedDescription)")
+                }
+            }
+    }
+    
+    func stopRequestsListener() {
+        requestsListener?.remove()
+        requestsListener = nil
     }
     
     enum ConnectionError: LocalizedError {

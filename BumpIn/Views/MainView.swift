@@ -89,6 +89,7 @@ struct MainView: View {
             SettingsView()
                 .environmentObject(userService)
                 .environmentObject(authService)
+                .environmentObject(cardService)
                 .tabItem {
                     Label("Profile", systemImage: "person.circle.fill")
                 }
@@ -130,6 +131,12 @@ struct MainView: View {
             if let card = cardService.userCard {
                 ZoomableCardView(card: card, selectedImage: nil)
             }
+        }
+        .onAppear {
+            connectionService.startRequestsListener()
+        }
+        .onDisappear {
+            connectionService.stopRequestsListener()
         }
     }
     
@@ -181,6 +188,7 @@ struct MainView: View {
                                 ForEach(cardService.contacts) { card in
                                     ContactBox(card: card)
                                 }
+
                             }
                             .padding(.horizontal, 12)
                         }
