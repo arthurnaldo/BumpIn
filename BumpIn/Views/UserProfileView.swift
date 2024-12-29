@@ -9,7 +9,6 @@ struct UserProfileView: View {
     @State private var hasRequestPending = false
     @State private var hasIncomingRequest = false
     @State private var isLoading = false
-    @State private var showFullCard = false
     @State private var showDisconnectConfirmation = false
     
     var body: some View {
@@ -184,24 +183,13 @@ struct UserProfileView: View {
                         HStack {
                             Text("Business Card")
                                 .font(.title3.bold())
-                            
                             Spacer()
-                            
-                            Button {
-                                showFullCard = true
-                            } label: {
-                                Label("View Full", systemImage: "arrow.up.forward.square")
-                                    .font(.subheadline)
-                            }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, CardDimensions.horizontalPadding)
                         
                         BusinessCardPreview(card: card, showFull: false, selectedImage: nil)
-                            .frame(height: 200)
-                            .padding(.horizontal)
-                            .onTapGesture {
-                                showFullCard = true
-                            }
+                            .frame(height: CardDimensions.previewHeight)
+                            .padding(.horizontal, CardDimensions.horizontalPadding)
                     }
                     .padding(.vertical)
                 }
@@ -259,11 +247,6 @@ struct UserProfileView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("You will need to send a new connection request to reconnect.")
-        }
-        .sheet(isPresented: $showFullCard) {
-            if let card = user.card {
-                CardDetailView(card: card, selectedImage: nil)
-            }
         }
         .task {
             await checkStatus()

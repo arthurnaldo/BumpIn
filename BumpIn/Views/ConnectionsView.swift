@@ -4,12 +4,10 @@ struct ConnectionsView: View {
     @EnvironmentObject var connectionService: ConnectionService
     @EnvironmentObject var userService: UserService
     @State private var searchText = ""
-    @State private var showError = false
-    @State private var errorMessage = ""
     
     var body: some View {
-        NavigationStack {
-            List {
+        NavigationView {
+            ScrollView {
                 if searchText.isEmpty && connectionService.connections.isEmpty {
                     ContentUnavailableView(
                         "No Connections",
@@ -17,39 +15,68 @@ struct ConnectionsView: View {
                         description: Text("Search to connect with others")
                     )
                 } else if userService.isSearching {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                        Spacer()
-                    }
-                } else {
-                    // Show filtered results with connected users first
-                    let searchResults = searchText.isEmpty 
-                        ? connectionService.connections 
-                        : userService.searchResults
-                    
-                    ForEach(searchResults.sorted { user1, user2 in
-                        // Connected users always come first
-                        let isConnected1 = connectionService.connections.contains { $0.id == user1.id }
-                        let isConnected2 = connectionService.connections.contains { $0.id == user2.id }
-                        if isConnected1 != isConnected2 {
-                            return isConnected1
-                        }
-                        return user1.username < user2.username
-                    }) { user in
-                        NavigationLink(destination: UserProfileView(user: user)) {
-                            NetworkUserRow(
-                                user: user,
-                                showConnectionStatus: true,
-                                isConnected: connectionService.connections.contains { $0.id == user.id }
-                            )
-                        }
-                        .swipeActions(edge: .trailing) {
-                            if connectionService.connections.contains(where: { $0.id == user.id }) {
-                                DisconnectButton(userId: user.id)
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.top, 100)
+                } else if !searchText.isEmpty {
+                    // Search results - original list style
+                    LazyVStack(spacing: 0) {
+                        ForEach(userService.searchResults.sorted { user1, user2 in
+                            let isConnected1 = connectionService.connections.contains { $0.id == user1.id }
+                            let isConnected2 = connectionService.connections.contains { $0.id == user2.id }
+                            if isConnected1 != isConnected2 {
+                                return isConnected1
                             }
+                            return user1.username < user2.username
+                        }) { user in
+                            NavigationLink(destination: UserProfileView(user: user)) {
+                                NetworkUserRow(
+                                    user: user,
+                                    showConnectionStatus: true,
+                                    isConnected: connectionService.connections.contains { $0.id == user.id }
+                                )
+                            }
+                            Divider()
                         }
                     }
+                    .background(Color(uiColor: .systemBackground))
+                } else {
+                    // Connections view - card style
+                    LazyVStack(spacing: CardDimensions.horizontalPadding) {
+                        ForEach(connectionService.connections) { user in
+                            NavigationLink(destination: UserProfileView(user: user)) {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    // Username and connection status
+                                    HStack {
+                                        Text("@\(user.username)")
+                                            .font(.headline)
+                                            .foregroundColor(.primary)
+                                        
+                                        Spacer()
+                                        
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(.green)
+                                    }
+                                    
+                                    // Card preview
+                                    if let card = user.card {
+                                        BusinessCardPreview(card: card, showFull: false, selectedImage: nil)
+                                            .frame(height: CardDimensions.previewHeight)
+                                    }
+                                }
+                                .padding(CardDimensions.horizontalPadding)
+                                .background(Color(uiColor: .systemBackground))
+                                .cornerRadius(CardDimensions.cornerRadius)
+                                .shadow(
+                                    color: .black.opacity(CardDimensions.shadowOpacity),
+                                    radius: CardDimensions.shadowRadius
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                        .padding(.horizontal, CardDimensions.horizontalPadding)
+                    }
+                    .padding(.vertical, CardDimensions.horizontalPadding)
                 }
             }
             .navigationTitle("Network")
@@ -62,11 +89,6 @@ struct ConnectionsView: View {
                     }
                 }
             }
-            .alert("Error", isPresented: $showError) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text(errorMessage)
-            }
         }
         .task {
             await fetchData()
@@ -77,8 +99,7 @@ struct ConnectionsView: View {
         do {
             try await connectionService.fetchConnections()
         } catch {
-            errorMessage = error.localizedDescription
-            showError = true
+            print("Failed to fetch data: \(error.localizedDescription)")
         }
     }
 }
