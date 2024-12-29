@@ -167,7 +167,6 @@ struct CreateCardView: View {
     
     private var cardPreviewSection: some View {
         VStack(alignment: .leading, spacing: 15) {
-<<<<<<< HEAD
             HStack {
                 Text("Preview")
                     .font(.headline)
@@ -176,12 +175,6 @@ struct CreateCardView: View {
                 Spacer()
             }
             .padding(.horizontal, CardDimensions.horizontalPadding)
-=======
-            Text("Preview")
-                .font(.headline)
-                .foregroundColor(.gray)
-                .padding(.horizontal)
->>>>>>> 8734e445253a24964ab51b0030221b509ead2314
             
             BusinessCardPreview(card: businessCard, showFull: false, selectedImage: selectedImage)
                 .frame(height: CardDimensions.previewHeight)
