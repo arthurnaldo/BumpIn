@@ -40,7 +40,6 @@ struct BusinessCardPreview: View {
             .frame(maxWidth: .infinity)
             .frame(height: showFull ? nil : 200)
             .background(card.colorScheme.backgroundView(style: card.backgroundStyle))
-            .cornerRadius(16)
             .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.layoutStyle)
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.colorScheme)

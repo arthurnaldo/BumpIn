@@ -85,7 +85,7 @@ struct CardDetailView: View {
                             .frame(height: 220)
                             .frame(maxWidth: .infinity)
                             .background(card.colorScheme.backgroundView(style: card.backgroundStyle))
-                            .cornerRadius(16)
+                            .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
                             .opacity(isFlipped ? 1 : 0)
                             .scaleEffect(isFlipped ? 1 : 0.9)
                             .rotation3DEffect(.degrees(isFlipped ? 0 : -180), axis: (x: 0, y: 1, z: 0))
