@@ -4,6 +4,7 @@ struct ConnectionsView: View {
     @EnvironmentObject var connectionService: ConnectionService
     @EnvironmentObject var userService: UserService
     @State private var searchText = ""
+    @Namespace private var animation
     
     var body: some View {
         NavigationView {
@@ -19,9 +20,10 @@ struct ConnectionsView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding(.top, 100)
                 } else if !searchText.isEmpty {
-                    // Search results - original list style
+                    // Search results view
                     LazyVStack(spacing: 0) {
                         ForEach(userService.searchResults.sorted { user1, user2 in
+                            // Connected users first
                             let isConnected1 = connectionService.connections.contains { $0.id == user1.id }
                             let isConnected2 = connectionService.connections.contains { $0.id == user2.id }
                             if isConnected1 != isConnected2 {
@@ -36,12 +38,13 @@ struct ConnectionsView: View {
                                     isConnected: connectionService.connections.contains { $0.id == user.id }
                                 )
                             }
+                            .transition(.opacity.combined(with: .move(edge: .trailing)))
                             Divider()
                         }
                     }
                     .background(Color(uiColor: .systemBackground))
                 } else {
-                    // Connections view - card style
+                    // Connections view
                     LazyVStack(spacing: CardDimensions.horizontalPadding) {
                         ForEach(connectionService.connections) { user in
                             NavigationLink(destination: UserProfileView(user: user)) {
@@ -58,7 +61,7 @@ struct ConnectionsView: View {
                                             .foregroundColor(.green)
                                     }
                                     
-                                    // Card preview
+                                    // Card preview if available
                                     if let card = user.card {
                                         BusinessCardPreview(card: card, showFull: false, selectedImage: nil)
                                             .frame(height: CardDimensions.previewHeight)
@@ -73,12 +76,17 @@ struct ConnectionsView: View {
                                 )
                             }
                             .buttonStyle(PlainButtonStyle())
+                            .transition(.move(edge: .trailing))
                         }
                         .padding(.horizontal, CardDimensions.horizontalPadding)
                     }
                     .padding(.vertical, CardDimensions.horizontalPadding)
                 }
             }
+            .animation(.spring(
+                response: CardDimensions.transitionDuration,
+                dampingFraction: CardDimensions.springDamping
+            ), value: searchText)
             .navigationTitle("Network")
             .searchable(text: $searchText, prompt: "Search users")
             .onChange(of: searchText) { _, newValue in
@@ -100,22 +108,6 @@ struct ConnectionsView: View {
             try await connectionService.fetchConnections()
         } catch {
             print("Failed to fetch data: \(error.localizedDescription)")
-        }
-    }
-}
-
-// MARK: - Supporting Views
-struct DisconnectButton: View {
-    let userId: String
-    @EnvironmentObject var connectionService: ConnectionService
-    
-    var body: some View {
-        Button(role: .destructive) {
-            Task {
-                try? await connectionService.removeConnection(with: userId)
-            }
-        } label: {
-            Label("Disconnect", systemImage: "person.badge.minus")
         }
     }
 } 

@@ -18,8 +18,6 @@ struct MainView: View {
     @State private var selectedImage: UIImage?
     @State private var isDarkMode = true
     @Namespace private var themeAnimation
-    @State private var isCardZoomed = false
-    @State private var showExpandedCard = false
     
     private func fetchInitialData() async {
         guard let userId = authService.user?.uid else { return }
@@ -127,11 +125,6 @@ struct MainView: View {
         .onDisappear {
             cardService.stopContactsListener()
         }
-        .sheet(isPresented: $showExpandedCard) {
-            if let card = cardService.userCard {
-                ZoomableCardView(card: card, selectedImage: nil)
-            }
-        }
         .onAppear {
             connectionService.startRequestsListener()
         }
@@ -148,14 +141,11 @@ struct MainView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Your Card")
                                 .font(.system(size: 20, weight: .semibold))
-                                .padding(.horizontal, 12)
+                                .padding(.horizontal, CardDimensions.horizontalPadding)
                             
                             BusinessCardPreview(card: card, showFull: false, selectedImage: nil)
-                                .frame(height: 200)
-                                .onTapGesture {
-                                    showExpandedCard = true
-                                }
-                                .padding(.horizontal, 12)
+                                .frame(height: CardDimensions.previewHeight)
+                                .padding(.horizontal, CardDimensions.horizontalPadding)
                         }
                     } else {
                         Button(action: { selectedTab = 1 }) {
