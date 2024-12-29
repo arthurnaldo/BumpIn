@@ -62,16 +62,19 @@ struct CreateCardView: View {
     @State private var selectedRole: PersonRole = .professional
     @State private var isUploadingImage = false
     @State private var showEmoticonPicker = false
+    @Binding var selectedTab: Int
     
-    init(cardService: BusinessCardService) {
+    init(cardService: BusinessCardService, selectedTab: Binding<Int>) {
         self._cardService = ObservedObject(wrappedValue: cardService)
         let initialCard = cardService.userCard ?? BusinessCard()
         self._businessCard = State(initialValue: initialCard)
+        self._selectedTab = selectedTab
     }
     
-    init(cardService: BusinessCardService, existingCard: BusinessCard) {
+    init(cardService: BusinessCardService, existingCard: BusinessCard, selectedTab: Binding<Int>) {
         self._cardService = ObservedObject(wrappedValue: cardService)
         self._businessCard = State(initialValue: existingCard)
+        self._selectedTab = selectedTab
     }
     
     var body: some View {
@@ -159,6 +162,10 @@ struct CreateCardView: View {
         }
         .task {
             await loadProfileImage()
+        }
+        .scrollDismissesKeyboard(.immediately)
+        .onTapGesture {
+            hideKeyboard()
         }
     }
     
@@ -500,47 +507,34 @@ struct CreateCardView: View {
     }
     
     private func saveCard() async {
-        guard let userId = authService.user?.uid else {
-            await MainActor.run {
+        isLoading = true
+        do {
+            guard let userId = authService.user?.uid else {
                 alertMessage = "Error: User not authenticated"
                 showAlert = true
+                isLoading = false
+                return
             }
-            return
-        }
-        
-        await MainActor.run {
-            isLoading = true
-        }
-        
-        do {
+            
             if let image = selectedImage {
                 do {
                     let url = try await cardService.uploadCardProfilePicture(cardId: businessCard.id, image: image)
                     businessCard.profilePictureURL = url
                 } catch {
-                    await MainActor.run {
-                        isLoading = false
-                        alertMessage = "Error uploading profile image: \(error.localizedDescription)"
-                        showAlert = true
-                    }
-                    return
+                    print("Error uploading profile image: \(error.localizedDescription)")
                 }
             }
             
             try await cardService.saveCard(businessCard, userId: userId)
             
-            await MainActor.run {
-                cardService.userCard = businessCard
-                isLoading = false
-                dismiss()
-            }
+            // After successful save, switch to home tab
+            selectedTab = 0
+            
         } catch {
-            await MainActor.run {
-                isLoading = false
-                alertMessage = "Error saving card: \(error.localizedDescription)"
-                showAlert = true
-            }
+            alertMessage = "Error: \(error.localizedDescription)"
+            showAlert = true
         }
+        isLoading = false
     }
     
     private func uploadProfilePicture(_ image: UIImage) {
@@ -955,5 +949,11 @@ struct EmoticonRow: View {
         case "About Me": return emoticonOptions[7]
         default: return emoticonOptions[0]
         }
+    }
+}
+
+extension View {
+    func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 } 

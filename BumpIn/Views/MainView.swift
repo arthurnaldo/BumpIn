@@ -68,9 +68,9 @@ struct MainView: View {
             
             NavigationView {
                 if let existingCard = cardService.userCard {
-                    CreateCardView(cardService: cardService, existingCard: existingCard)
+                    CreateCardView(cardService: cardService, existingCard: existingCard, selectedTab: $selectedTab)
                 } else {
-                    CreateCardView(cardService: cardService)
+                    CreateCardView(cardService: cardService, selectedTab: $selectedTab)
                 }
             }
             .tabItem {
