@@ -8,8 +8,6 @@ struct UserProfileView: View {
     @State private var isConnected = false
     @State private var hasRequestPending = false
     @State private var hasIncomingRequest = false
-    @State private var showError = false
-    @State private var errorMessage = ""
     @State private var isLoading = false
     @State private var showFullCard = false
     @State private var showDisconnectConfirmation = false
@@ -90,10 +88,10 @@ struct UserProfileView: View {
                                         isConnected = false
                                         hasRequestPending = false
                                         hasIncomingRequest = false
-                                        await checkStatus()
+                                        print("✅ Successfully disconnected")
+                                        await checkStatus()  // Refresh status after disconnect
                                     } catch {
-                                        errorMessage = error.localizedDescription
-                                        showError = true
+                                        print("❌ Disconnect failed: \(error.localizedDescription)")
                                     }
                                     isLoading = false
                                 }
@@ -106,17 +104,47 @@ struct UserProfileView: View {
                                         hasRequestPending = false
                                         isConnected = false
                                         hasIncomingRequest = false
-                                        await checkStatus()
-                                        print("✅ Successfully canceled request!")
+                                        print("✅ Successfully canceled request")
+                                        await checkStatus()  // Refresh status after canceling
                                     } catch {
-                                        errorMessage = error.localizedDescription
-                                        showError = true
                                         print("❌ Cancel request failed: \(error.localizedDescription)")
                                     }
                                     isLoading = false
                                 }
+                            } else if hasIncomingRequest {
+                                // Handle accepting request
+                                isLoading = true
+                                Task {
+                                    do {
+                                        if let request = try await connectionService.findPendingRequest(from: user.id) {
+                                            try await connectionService.handleConnectionRequest(request, accept: true)
+                                            isConnected = true
+                                            hasIncomingRequest = false
+                                            hasRequestPending = false
+                                            print("✅ Successfully accepted request")
+                                            await checkStatus()  // Refresh status after accepting
+                                        }
+                                    } catch {
+                                        print("❌ Accept request failed: \(error.localizedDescription)")
+                                    }
+                                    isLoading = false
+                                }
                             } else {
-                                handleConnectionAction()
+                                // Handle sending new request
+                                isLoading = true
+                                Task {
+                                    do {
+                                        try await connectionService.sendConnectionRequest(to: user)
+                                        hasRequestPending = true
+                                        isConnected = false
+                                        hasIncomingRequest = false
+                                        print("✅ Successfully sent request")
+                                        await checkStatus()  // Refresh status after sending
+                                    } catch {
+                                        print("❌ Send request failed: \(error.localizedDescription)")
+                                    }
+                                    isLoading = false
+                                }
                             }
                         }) {
                             HStack {
@@ -209,11 +237,6 @@ struct UserProfileView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .alert("Error", isPresented: $showError) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(errorMessage)
-        }
         .confirmationDialog(
             "Disconnect from @\(user.username)?",
             isPresented: $showDisconnectConfirmation,
@@ -228,8 +251,7 @@ struct UserProfileView: View {
                         showDisconnectConfirmation = false
                         await checkStatus()
                     } catch {
-                        errorMessage = error.localizedDescription
-                        showError = true
+                        print("Connection action failed: \(error.localizedDescription)")
                     }
                     isLoading = false
                 }
@@ -301,76 +323,54 @@ struct UserProfileView: View {
     
     private func checkStatus() async {
         guard let currentUser = Auth.auth().currentUser else {
-            print("❌ No current user")
+            print("No current user")
             return 
         }
         
         print("🔍 Checking connection status for user: \(user.id)")
         
         do {
-            async let connectionCheck = Firestore.firestore()
+            // Check connection status
+            let connection = try await Firestore.firestore()
                 .collection("users")
                 .document(currentUser.uid)
                 .collection("connections")
                 .document(user.id)
                 .getDocument()
             
-            async let outgoingRequestCheck = connectionService.hasPendingRequest(for: user.id)
-            async let incomingRequestCheck = connectionService.hasIncomingRequest(from: user.id)
+            // Check outgoing request (in their connectionRequests)
+            let outgoingSnapshot = try await Firestore.firestore()
+                .collection("users")
+                .document(user.id)
+                .collection("connectionRequests")
+                .whereField("fromUserId", isEqualTo: currentUser.uid)
+                .whereField("status", isEqualTo: ConnectionRequest.RequestStatus.pending.rawValue)
+                .getDocuments()
             
-            let (connection, hasPending, hasIncoming) = await (
-                try connectionCheck,
-                try outgoingRequestCheck,
-                try incomingRequestCheck
-            )
+            // Check incoming request (in our connectionRequests)
+            let incomingSnapshot = try await Firestore.firestore()
+                .collection("users")
+                .document(currentUser.uid)
+                .collection("connectionRequests")
+                .whereField("fromUserId", isEqualTo: user.id)
+                .whereField("status", isEqualTo: ConnectionRequest.RequestStatus.pending.rawValue)
+                .getDocuments()
             
-            isConnected = connection.exists
-            hasRequestPending = hasPending
-            hasIncomingRequest = hasIncoming
-            
-            print("✅ Status check complete:")
-            print("- isConnected: \(isConnected)")
-            print("- hasRequestPending: \(hasRequestPending)")
-            print("- hasIncomingRequest: \(hasIncomingRequest)")
-            
-        } catch {
-            print("❌ Error checking status: \(error.localizedDescription)")
-            errorMessage = error.localizedDescription
-            showError = true
-        }
-    }
-    
-    private func handleConnectionAction() {
-        isLoading = true
-        Task {
-            do {
-                if isConnected {
-                    try await connectionService.removeConnection(with: user.id)
-                    // Reset ALL states when disconnecting
-                    isConnected = false
-                    hasRequestPending = false
-                    hasIncomingRequest = false
-                } else if hasIncomingRequest {
-                    if let request = try await connectionService.findPendingRequest(from: user.id) {
-                        try await connectionService.handleConnectionRequest(request, accept: true)
-                        isConnected = true
-                        hasIncomingRequest = false
-                        hasRequestPending = false
-                    }
-                } else {
-                    try await connectionService.sendConnectionRequest(to: user)
-                    hasRequestPending = true
-                    isConnected = false
-                    hasIncomingRequest = false
-                }
+            await MainActor.run {
+                isConnected = connection.exists
+                hasRequestPending = !outgoingSnapshot.documents.isEmpty
+                hasIncomingRequest = !incomingSnapshot.documents.isEmpty
                 
-                await checkStatus()
-                
-            } catch {
-                errorMessage = error.localizedDescription
-                showError = true
+                print("""
+                ✅ Status check complete:
+                - isConnected: \(isConnected)
+                - hasRequestPending: \(hasRequestPending) (we sent request)
+                - hasIncomingRequest: \(hasIncomingRequest) (they sent request)
+                - Documents found: outgoing=\(outgoingSnapshot.documents.count), incoming=\(incomingSnapshot.documents.count)
+                """)
             }
-            isLoading = false
+        } catch {
+            print("❌ Status check failed: \(error.localizedDescription)")
         }
     }
 }

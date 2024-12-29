@@ -24,19 +24,19 @@ class ConnectionService: ObservableObject {
             throw ConnectionError.alreadyConnected
         }
         
-        // Check if pending request already exists
-        let existingRequest = try await db.collection("users")
+        // Only check outgoing requests (we sent to them)
+        let outgoingSnapshot = try await db.collection("users")
             .document(user.id)
             .collection("connectionRequests")
             .whereField("fromUserId", isEqualTo: currentUser.uid)
             .whereField("status", isEqualTo: ConnectionRequest.RequestStatus.pending.rawValue)
             .getDocuments()
         
-        if !existingRequest.documents.isEmpty {
+        if !outgoingSnapshot.documents.isEmpty {
             throw ConnectionError.requestAlreadyExists
         }
         
-        // Get sender's username first
+        // Get sender's username
         let senderDoc = try await db.collection("users").document(currentUser.uid).getDocument()
         guard let senderData = senderDoc.data(),
               let senderUsername = senderData["username"] as? String else {
@@ -59,10 +59,10 @@ class ConnectionService: ObservableObject {
             throw ConnectionError.invalidRequest
         }
         
-        // Use a batch write instead of transaction
+        // Use a batch write
         let batch = db.batch()
         
-        // Add request to recipient's requests collection
+        // Add to recipient's requests
         let recipientRef = db.collection("users")
             .document(user.id)
             .collection("connectionRequests")
@@ -78,11 +78,10 @@ class ConnectionService: ObservableObject {
         
         try await batch.commit()
         
-        // Send notification after successful request
-        try await notificationService.sendConnectionRequestNotification(
-            to: user.id,
-            fromUsername: senderUsername
-        )
+        // Update local state
+        await MainActor.run {
+            self.pendingRequests.append(request)
+        }
     }
     
     func handleConnectionRequest(_ request: ConnectionRequest, accept: Bool) async throws {
@@ -281,43 +280,36 @@ class ConnectionService: ObservableObject {
     func cancelConnectionRequest(to userId: String) async throws {
         guard let currentUser = Auth.auth().currentUser else { throw AuthError.notAuthenticated }
         
-        // Find and delete the request from recipient's requests
+        let batch = db.batch()
+        
+        // Delete from recipient's requests
         let recipientRequests = try await db.collection("users")
             .document(userId)
             .collection("connectionRequests")
             .whereField("fromUserId", isEqualTo: currentUser.uid)
-            .whereField("status", isEqualTo: ConnectionRequest.RequestStatus.pending.rawValue)
             .getDocuments()
         
-        // Find and delete the request from sender's sent requests
+        // Delete from sender's sent requests
         let senderRequests = try await db.collection("users")
             .document(currentUser.uid)
             .collection("sentRequests")
             .whereField("toUserId", isEqualTo: userId)
-            .whereField("status", isEqualTo: ConnectionRequest.RequestStatus.pending.rawValue)
             .getDocuments()
         
-        let batch = db.batch()
-        
-        // Delete from recipient's requests
         for doc in recipientRequests.documents {
-            let ref = db.collection("users")
-                .document(userId)
-                .collection("connectionRequests")
-                .document(doc.documentID)
-            batch.deleteDocument(ref)
+            batch.deleteDocument(doc.reference)
         }
         
-        // Delete from sender's sent requests
         for doc in senderRequests.documents {
-            let ref = db.collection("users")
-                .document(currentUser.uid)
-                .collection("sentRequests")
-                .document(doc.documentID)
-            batch.deleteDocument(ref)
+            batch.deleteDocument(doc.reference)
         }
         
         try await batch.commit()
+        
+        // Update local state
+        await MainActor.run {
+            self.pendingRequests.removeAll { $0.toUserId == userId }
+        }
     }
     
     func startRequestsListener() {
