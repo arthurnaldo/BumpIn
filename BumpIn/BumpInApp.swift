@@ -21,8 +21,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 struct BumpInApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var cardService = BusinessCardService()
-    @State private var foundCard: BusinessCard?
-    @State private var showFoundCard = false
+    @StateObject private var userService = UserService()
+    @State private var foundUser: User?
+    @State private var showUserProfile = false
     @State private var errorMessage: String?
     @State private var showError = false
     
@@ -30,45 +31,67 @@ struct BumpInApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(cardService)
+                .environmentObject(userService)
                 .onOpenURL { url in
-                    print("🔗 Received URL: \(url.absoluteString)")
-                    if let cardId = url.absoluteString.components(separatedBy: "/").last {
+                    print("\n🔗 Processing URL: \(url.absoluteString)")
+                    
+                    // Parse the URL properly
+                    let urlString = url.absoluteString
+                    guard let schemeRange = urlString.range(of: "bumpin://") else {
+                        print("❌ Invalid URL: missing scheme")
+                        return
+                    }
+                    
+                    // Get the path after the scheme
+                    let path = urlString[schemeRange.upperBound...]
+                    let components = path.split(separator: "/")
+                    print("📝 URL components after scheme: \(components)")
+                    
+                    guard !components.isEmpty else {
+                        print("❌ Invalid URL: no components after scheme")
+                        return
+                    }
+                    
+                    let type = String(components[0])
+                    print("🏷️ URL type: \(type)")
+                    
+                    if type == "profile", components.count > 1 {
+                        let username = String(components[1])
+                        print("\n👤 Processing profile link for username: '\(username)'")
                         Task {
                             do {
-                                if let card = try? await cardService.fetchCardById(cardId) {
-                                    print("✅ Found card: \(card.name)")
+                                print("🔍 Starting user search...")
+                                try await userService.searchUsers(query: username)
+                                print("📊 Search returned \(userService.searchResults.count) results")
+                                
+                                if let matchedUser = userService.searchResults.first {
+                                    print("✅ Found matching user: \(matchedUser.username)")
                                     await MainActor.run {
-                                        foundCard = card
-                                        showFoundCard = true
+                                        foundUser = matchedUser
+                                        showUserProfile = true
                                     }
+                                } else {
+                                    print("❌ No user found with username: '\(username)'")
+                                    errorMessage = "No user found with username '@\(username)'"
+                                    showError = true
                                 }
                             } catch {
-                                print("❌ Error: \(error.localizedDescription)")
-                                await MainActor.run {
-                                    errorMessage = error.localizedDescription
-                                    showError = true
-                                }
+                                print("❌ Error searching for user: \(error.localizedDescription)")
+                                errorMessage = "Failed to search for user: \(error.localizedDescription)"
+                                showError = true
                             }
                         }
+                    } else {
+                        print("❌ Unknown URL type: \(type)")
+                        errorMessage = "Invalid link format"
+                        showError = true
                     }
                 }
-                .alert("Add Contact?", isPresented: $showFoundCard) {
-                    Button("Add") {
-                        if let card = foundCard {
-                            Task {
-                                do {
-                                    try await cardService.addCard(card)
-                                } catch {
-                                    errorMessage = error.localizedDescription
-                                    showError = true
-                                }
-                            }
+                .sheet(isPresented: $showUserProfile) {
+                    if let user = foundUser {
+                        NavigationView {
+                            UserProfileView(user: user)
                         }
-                    }
-                    Button("Cancel", role: .cancel) { }
-                } message: {
-                    if let card = foundCard {
-                        Text("Would you like to add \(card.name) to your contacts?")
                     }
                 }
                 .alert("Error", isPresented: $showError) {

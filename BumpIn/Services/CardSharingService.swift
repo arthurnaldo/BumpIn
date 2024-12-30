@@ -10,12 +10,12 @@ class CardSharingService: ObservableObject {
         self.cardService = cardService
     }
     
-    func generateShareableLink(for card: BusinessCard) -> String {
-        return "bumpin://add-card/\(card.id)"
+    func generateProfileLink(for username: String) -> String {
+        return "bumpin://profile/\(username)"
     }
     
-    func copyLinkToClipboard(for card: BusinessCard) {
-        let link = generateShareableLink(for: card)
+    func copyProfileLinkToClipboard(for username: String) {
+        let link = generateProfileLink(for: username)
         UIPasteboard.general.string = link
         showCopyConfirmation = true
         

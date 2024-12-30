@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ShareCardView: View {
     @EnvironmentObject var cardService: BusinessCardService
+    @EnvironmentObject var userService: UserService
     @StateObject private var sharingService: CardSharingService
     
     init() {
@@ -14,15 +15,17 @@ struct ShareCardView: View {
                 BusinessCardPreview(card: card, showFull: true, selectedImage: nil)
                     .padding()
                 
-                Button {
-                    sharingService.copyLinkToClipboard(for: card)
-                } label: {
-                    Label("Copy Link", systemImage: "doc.on.doc")
+                if let currentUser = userService.currentUser {
+                    Button {
+                        sharingService.copyProfileLinkToClipboard(for: currentUser.username)
+                    } label: {
+                        Label("Share Profile", systemImage: "person.crop.circle.badge.plus")
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
-                .buttonStyle(.borderedProminent)
             }
         }
-        .navigationTitle("Share Card")
+        .navigationTitle("Share")
         .overlay {
             if sharingService.showCopyConfirmation {
                 Text("Link copied!")

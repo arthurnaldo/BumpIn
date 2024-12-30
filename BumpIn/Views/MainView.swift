@@ -54,8 +54,18 @@ struct MainView: View {
                                 .font(.system(size: 24, weight: .bold))
                         }
                         ToolbarItem(placement: .navigationBarTrailing) {
-                            NotificationButton()
-                                .environmentObject(connectionService)
+                            HStack {
+                                if let currentUser = userService.currentUser {
+                                    Button {
+                                        let sharingService = CardSharingService(cardService: cardService)
+                                        sharingService.copyProfileLinkToClipboard(for: currentUser.username)
+                                    } label: {
+                                        Image(systemName: "person.crop.circle.badge.plus")
+                                    }
+                                }
+                                NotificationButton()
+                                    .environmentObject(connectionService)
+                            }
                         }
                     }
             }
