@@ -239,11 +239,6 @@ struct CreateCardView: View {
     
     private var cardDesignSection: some View {
         FormSection(title: "Card Design") {
-            symbolToggle
-            
-            Divider()
-                .padding(.vertical, 10)
-            
             colorSchemeSelector
             
             Divider()
@@ -291,20 +286,10 @@ struct CreateCardView: View {
                 }
             }
             
+            Divider()
+                .padding(.vertical, 10)
+            
             borderSelector
-        }
-    }
-    
-    private var symbolToggle: some View {
-        HStack {
-            Text("Show Symbols")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-            
-            Spacer()
-            
-            Toggle("", isOn: $businessCard.showSymbols)
-                .labelsHidden()
         }
     }
     
