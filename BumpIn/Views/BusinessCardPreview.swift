@@ -45,6 +45,10 @@ struct BusinessCardPreview: View {
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.colorScheme)
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.fontStyle)
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.backgroundStyle)
+            .overlay(
+                Rectangle()
+                    .stroke(card.colorScheme.borderColor, lineWidth: card.colorScheme.borderWidth)
+            )
             .task {
                 if let imageURL = card.profilePictureURL {
                     print("🖼️ Loading profile image from URL: \(imageURL)")

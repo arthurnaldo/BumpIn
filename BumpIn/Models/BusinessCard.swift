@@ -67,6 +67,8 @@ struct CardColorScheme: Codable, Equatable {
     var textColor: Color = .white
     var accentColor: Color = .white.opacity(0.8)
     var emoticon: String = "💫"
+    var borderColor: Color = .clear
+    var borderWidth: CGFloat = 0
     
     private enum CodingKeys: String, CodingKey {
         case primary, secondary, textColor, accentColor, emoticon

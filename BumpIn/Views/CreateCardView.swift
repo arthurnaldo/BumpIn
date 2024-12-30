@@ -290,6 +290,8 @@ struct CreateCardView: View {
                     EmojiPicker(selectedEmoji: $businessCard.colorScheme.emoticon)
                 }
             }
+            
+            borderSelector
         }
     }
     
@@ -384,6 +386,80 @@ struct CreateCardView: View {
                             isSelected: businessCard.backgroundStyle == style
                         ) {
                             businessCard.backgroundStyle = style
+                        }
+                    }
+                }
+                .padding(.horizontal, 5)
+                .padding(.bottom, 5)
+            }
+        }
+    }
+    
+    private var borderSelector: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Border")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 15) {
+                    // No border option
+                    Button(action: {
+                        businessCard.colorScheme.borderColor = .clear
+                        businessCard.colorScheme.borderWidth = 0
+                    }) {
+                        ZStack {
+                            Rectangle()
+                                .fill(Color(uiColor: .systemGray6))
+                                .frame(width: 60, height: 60)
+                            
+                            Text("None")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    
+                    // Black border option
+                    Button(action: {
+                        businessCard.colorScheme.borderColor = .black
+                        businessCard.colorScheme.borderWidth = 2
+                    }) {
+                        Rectangle()
+                            .fill(Color(uiColor: .systemBackground))
+                            .frame(width: 60, height: 60)
+                            .overlay(
+                                Rectangle()
+                                    .stroke(Color.black, lineWidth: 2)
+                            )
+                    }
+                    
+                    // White border option
+                    Button(action: {
+                        businessCard.colorScheme.borderColor = .white
+                        businessCard.colorScheme.borderWidth = 2
+                    }) {
+                        Rectangle()
+                            .fill(Color.black)
+                            .frame(width: 60, height: 60)
+                            .overlay(
+                                Rectangle()
+                                    .stroke(Color.white, lineWidth: 2)
+                            )
+                    }
+                    
+                    // Color scheme border options
+                    ForEach(ColorSchemes.allCases, id: \.self) { scheme in
+                        Button(action: {
+                            businessCard.colorScheme.borderColor = scheme.colors.primary
+                            businessCard.colorScheme.borderWidth = 2
+                        }) {
+                            Rectangle()
+                                .fill(Color(uiColor: .systemBackground))
+                                .frame(width: 60, height: 60)
+                                .overlay(
+                                    Rectangle()
+                                        .stroke(scheme.colors.primary, lineWidth: 2)
+                                )
                         }
                     }
                 }
