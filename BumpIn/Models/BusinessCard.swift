@@ -329,6 +329,9 @@ enum FontStyles: String, Codable, CaseIterable {
     case creative = "Creative"
     case traditional = "Traditional"
     case contemporary = "Contemporary"
+    case tech = "Tech"
+    case retro = "Retro"
+    case futuristic = "Future"
     
     var titleFont: Font {
         switch self {
@@ -352,6 +355,12 @@ enum FontStyles: String, Codable, CaseIterable {
             return .system(size: 18, weight: .medium, design: .serif)
         case .contemporary:
             return .system(size: 18, weight: .regular, design: .rounded)
+        case .tech:
+            return .system(size: 18, weight: .medium, design: .monospaced)
+        case .retro:
+            return .system(size: 18, weight: .bold, design: .serif)
+        case .futuristic:
+            return .system(size: 18, weight: .thin, design: .rounded)
         }
     }
     
@@ -377,6 +386,12 @@ enum FontStyles: String, Codable, CaseIterable {
             return .system(size: 11, design: .serif)
         case .contemporary:
             return .system(size: 11, design: .rounded)
+        case .tech:
+            return .system(size: 11, weight: .regular, design: .monospaced)
+        case .retro:
+            return .system(size: 11, weight: .medium, design: .serif)
+        case .futuristic:
+            return .system(size: 11, weight: .light, design: .rounded)
         }
     }
     
@@ -402,6 +417,12 @@ enum FontStyles: String, Codable, CaseIterable {
             return .system(size: 9, design: .serif)
         case .contemporary:
             return .system(size: 9, design: .rounded)
+        case .tech:
+            return .system(size: 10, weight: .regular, design: .monospaced)
+        case .retro:
+            return .system(size: 9, weight: .regular, design: .serif)
+        case .futuristic:
+            return .system(size: 9, weight: .ultraLight, design: .rounded)
         }
     }
     
@@ -416,6 +437,9 @@ enum FontStyles: String, Codable, CaseIterable {
         case .minimalist: return 8
         case .bold: return 3
         case .creative: return 4
+        case .tech: return 4
+        case .retro: return 6
+        case .futuristic: return 2
         }
     }
     
@@ -430,6 +454,9 @@ enum FontStyles: String, Codable, CaseIterable {
         case .minimalist: return 6
         case .bold: return 1
         case .creative: return 2
+        case .tech: return 2
+        case .retro: return 4
+        case .futuristic: return 1
         }
     }
     
@@ -455,6 +482,9 @@ enum FontStyles: String, Codable, CaseIterable {
         case .minimalist: return 1.2
         case .bold: return 0.4
         case .creative: return 0.2
+        case .tech: return 0.5
+        case .retro: return 0.6
+        case .futuristic: return 0.8
         }
     }
 }
