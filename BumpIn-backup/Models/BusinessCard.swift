@@ -181,19 +181,6 @@ enum ColorSchemes: String, CaseIterable {
     case professional = "Professional"
     case elegant = "Elegant"
     case modern = "Modern"
-    case ruby = "Ruby"
-    case emerald = "Emerald"
-    case arctic = "Arctic"
-    case gold = "Gold"
-    case violet = "Violet"
-    case coral = "Coral"
-    case slate = "Slate"
-    case olive = "Olive"
-    case wine = "Wine"
-    case sage = "Sage"
-    case plum = "Plum"
-    case bronze = "Bronze"
-    case teal = "Teal"
     
     var colors: CardColorScheme {
         switch self {
@@ -219,8 +206,8 @@ enum ColorSchemes: String, CaseIterable {
             )
         case .midnight:
             return CardColorScheme(
-                primary: Color(red: 0.1, green: 0.1, blue: 0.3),
-                secondary: Color(red: 0.2, green: 0.2, blue: 0.4)
+                primary: Color(red: 0.1, green: 0.1, blue: 0.2),
+                secondary: Color(red: 0.2, green: 0.2, blue: 0.3)
             )
         case .professional:
             return CardColorScheme(
@@ -242,77 +229,6 @@ enum ColorSchemes: String, CaseIterable {
                 secondary: Color(white: 0.95),
                 textColor: Color(red: 0.2, green: 0.2, blue: 0.25),
                 accentColor: Color(red: 0.3, green: 0.3, blue: 0.35)
-            )
-        case .ruby:
-            return CardColorScheme(
-                primary: Color(red: 0.7, green: 0.1, blue: 0.2),
-                secondary: Color(red: 0.8, green: 0.2, blue: 0.3)
-            )
-        case .emerald:
-            return CardColorScheme(
-                primary: Color(red: 0.0, green: 0.5, blue: 0.4),
-                secondary: Color(red: 0.1, green: 0.6, blue: 0.5)
-            )
-        case .arctic:
-            return CardColorScheme(
-                primary: Color(red: 0.7, green: 0.9, blue: 1.0),
-                secondary: Color(red: 0.8, green: 1.0, blue: 1.0),
-                textColor: .black,
-                accentColor: Color.black.opacity(0.8)
-            )
-        case .gold:
-            return CardColorScheme(
-                primary: Color(red: 0.8, green: 0.7, blue: 0.2),
-                secondary: Color(red: 0.9, green: 0.8, blue: 0.3),
-                textColor: .black,
-                accentColor: Color.black.opacity(0.8)
-            )
-        case .violet:
-            return CardColorScheme(
-                primary: Color(red: 0.4, green: 0.2, blue: 0.6),
-                secondary: Color(red: 0.5, green: 0.3, blue: 0.7)
-            )
-        case .coral:
-            return CardColorScheme(
-                primary: Color(red: 1.0, green: 0.5, blue: 0.4),
-                secondary: Color(red: 1.0, green: 0.6, blue: 0.5)
-            )
-        case .slate:
-            return CardColorScheme(
-                primary: Color(red: 0.4, green: 0.5, blue: 0.6),
-                secondary: Color(red: 0.5, green: 0.6, blue: 0.7)
-            )
-        case .olive:
-            return CardColorScheme(
-                primary: Color(red: 0.5, green: 0.5, blue: 0.2),
-                secondary: Color(red: 0.6, green: 0.6, blue: 0.3)
-            )
-        case .wine:
-            return CardColorScheme(
-                primary: Color(red: 0.5, green: 0.1, blue: 0.2),
-                secondary: Color(red: 0.6, green: 0.2, blue: 0.3)
-            )
-        case .sage:
-            return CardColorScheme(
-                primary: Color(red: 0.5, green: 0.6, blue: 0.5),
-                secondary: Color(red: 0.6, green: 0.7, blue: 0.6)
-            )
-        case .plum:
-            return CardColorScheme(
-                primary: Color(red: 0.5, green: 0.2, blue: 0.4),
-                secondary: Color(red: 0.6, green: 0.3, blue: 0.5)
-            )
-        case .bronze:
-            return CardColorScheme(
-                primary: Color(red: 0.7, green: 0.5, blue: 0.3),
-                secondary: Color(red: 0.8, green: 0.6, blue: 0.4),
-                textColor: .black,
-                accentColor: Color.black.opacity(0.8)
-            )
-        case .teal:
-            return CardColorScheme(
-                primary: Color(red: 0.1, green: 0.5, blue: 0.5),
-                secondary: Color(red: 0.2, green: 0.6, blue: 0.6)
             )
         }
     }
