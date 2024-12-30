@@ -61,6 +61,7 @@ struct CreateCardView: View {
     @State private var selectedRole: PersonRole = .professional
     @State private var isUploadingImage = false
     @State private var showEmoticonPicker = false
+    @State private var showEmojiPicker = false
     @Binding var selectedTab: Int
     
     init(cardService: BusinessCardService, selectedTab: Binding<Int>) {
@@ -259,6 +260,36 @@ struct CreateCardView: View {
                 .padding(.vertical, 10)
             
             backgroundStyleSelector
+            
+            // Show emoji picker button when emoticonPattern is selected
+            if businessCard.backgroundStyle == .emoticonPattern {
+                Button(action: {
+                    showEmojiPicker = true
+                }) {
+                    HStack {
+                        Text("Pattern Symbol")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        
+                        Spacer()
+                        
+                        HStack {
+                            Text(businessCard.colorScheme.emoticon)
+                                .font(.system(size: 20))
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color(uiColor: .systemGray6))
+                        .cornerRadius(8)
+                    }
+                }
+                .sheet(isPresented: $showEmojiPicker) {
+                    EmojiPicker(selectedEmoji: $businessCard.colorScheme.emoticon)
+                }
+            }
         }
     }
     
