@@ -532,6 +532,22 @@ struct CreateCardView: View {
                 return
             }
             
+            // Upload new profile picture if selected
+            if let newImage = selectedImage {
+                print("📸 Uploading new profile picture...")
+                do {
+                    let imageURL = try await cardService.uploadCardProfilePicture(cardId: userId, image: newImage)
+                    print("✅ Profile picture uploaded successfully: \(imageURL)")
+                    businessCard.profilePictureURL = imageURL
+                } catch {
+                    print("❌ Failed to upload profile picture: \(error.localizedDescription)")
+                    alertMessage = "Failed to upload profile picture: \(error.localizedDescription)"
+                    showAlert = true
+                    isLoading = false
+                    return
+                }
+            }
+            
             try await cardService.saveCard(businessCard, userId: userId)
             
             // After successful save, switch to home tab

@@ -74,7 +74,7 @@ struct CardColorScheme: Codable, Equatable {
     var borderWidth: CGFloat = 0
     
     private enum CodingKeys: String, CodingKey {
-        case primary, secondary, textColor, accentColor, emoticon
+        case primary, secondary, textColor, accentColor, emoticon, borderColor, borderWidth
     }
     
     init() {
@@ -83,22 +83,26 @@ struct CardColorScheme: Codable, Equatable {
         self.textColor = .white
         self.accentColor = .white.opacity(0.8)
         self.emoticon = "💫"
+        self.borderColor = .clear
+        self.borderWidth = 0
     }
     
-    init(primary: Color, secondary: Color, textColor: Color = .white, accentColor: Color = .white.opacity(0.8), emoticon: String = "💫") {
+    init(primary: Color, secondary: Color, textColor: Color = .white, accentColor: Color = .white.opacity(0.8), emoticon: String = "💫", borderColor: Color = .clear, borderWidth: CGFloat = 0) {
         self.primary = primary
         self.secondary = secondary
         self.textColor = textColor
         self.accentColor = accentColor
         self.emoticon = emoticon
+        self.borderColor = borderColor
+        self.borderWidth = borderWidth
     }
     
     func backgroundView(style: BackgroundStyle) -> some View {
-        switch style {
+        let background = switch style {
         case .solid:
-            return AnyView(primary)
+            AnyView(primary)
         case .gradient:
-            return AnyView(
+            AnyView(
                 LinearGradient(
                     colors: [primary, secondary],
                     startPoint: .topLeading,
@@ -106,21 +110,21 @@ struct CardColorScheme: Codable, Equatable {
                 )
             )
         case .horizontalSplit:
-            return AnyView(
+            AnyView(
                 HStack(spacing: 0) {
                     primary
                     secondary
                 }
             )
         case .verticalSplit:
-            return AnyView(
+            AnyView(
                 VStack(spacing: 0) {
                     primary
                     secondary
                 }
             )
         case .emoticonPattern:
-            return AnyView(
+            AnyView(
                 ZStack {
                     LinearGradient(
                         colors: [primary, secondary],
@@ -145,6 +149,12 @@ struct CardColorScheme: Codable, Equatable {
                 }
             )
         }
+        
+        return background
+            .overlay(
+                Rectangle()
+                    .stroke(borderColor, lineWidth: borderWidth)
+            )
     }
     
     init(from decoder: Decoder) throws {
@@ -153,12 +163,15 @@ struct CardColorScheme: Codable, Equatable {
         let secondaryComponents = try container.decode([Double].self, forKey: .secondary)
         let textComponents = try container.decode([Double].self, forKey: .textColor)
         let accentComponents = try container.decode([Double].self, forKey: .accentColor)
+        let borderComponents = try container.decode([Double].self, forKey: .borderColor)
         self.emoticon = try container.decode(String.self, forKey: .emoticon)
+        self.borderWidth = try container.decode(CGFloat.self, forKey: .borderWidth)
         
         self.primary = Color(red: primaryComponents[0], green: primaryComponents[1], blue: primaryComponents[2])
         self.secondary = Color(red: secondaryComponents[0], green: secondaryComponents[1], blue: secondaryComponents[2])
         self.textColor = Color(red: textComponents[0], green: textComponents[1], blue: textComponents[2])
         self.accentColor = Color(red: accentComponents[0], green: accentComponents[1], blue: accentComponents[2])
+        self.borderColor = Color(red: borderComponents[0], green: borderComponents[1], blue: borderComponents[2])
     }
     
     func encode(to encoder: Encoder) throws {
@@ -168,12 +181,15 @@ struct CardColorScheme: Codable, Equatable {
         let secondaryComponents = UIColor(self.secondary).cgColor.components ?? [0, 0, 0]
         let textComponents = UIColor(self.textColor).cgColor.components ?? [1, 1, 1]
         let accentComponents = UIColor(self.accentColor).cgColor.components ?? [1, 1, 1]
+        let borderComponents = UIColor(self.borderColor).cgColor.components ?? [0, 0, 0]
         
         try container.encode([primaryComponents[0], primaryComponents[1], primaryComponents[2]], forKey: .primary)
         try container.encode([secondaryComponents[0], secondaryComponents[1], secondaryComponents[2]], forKey: .secondary)
         try container.encode([textComponents[0], textComponents[1], textComponents[2]], forKey: .textColor)
         try container.encode([accentComponents[0], accentComponents[1], accentComponents[2]], forKey: .accentColor)
+        try container.encode([borderComponents[0], borderComponents[1], borderComponents[2]], forKey: .borderColor)
         try container.encode(emoticon, forKey: .emoticon)
+        try container.encode(borderWidth, forKey: .borderWidth)
     }
 }
 
