@@ -210,8 +210,19 @@ class UserService: ObservableObject {
                 throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode card"])
             }
             
-            // Use email prefix as username
-            let username = email.split(separator: "@").first?.lowercased() ?? email.lowercased()
+            // Generate a unique username from email
+            var baseUsername = email.split(separator: "@").first?.lowercased() ?? email.lowercased()
+            var username = baseUsername
+            var counter = 1
+            
+            // Keep trying until we find an available username
+            while !(try await isUsernameAvailable(username)) {
+                username = "\(baseUsername)\(counter)"
+                counter += 1
+            }
+            
+            // Validate the username
+            try await validateUsername(username)
             
             // Generate QR code
             let qrCodeURL = try await qrCodeService.generateAndSaveProfileQRCode(for: username)
