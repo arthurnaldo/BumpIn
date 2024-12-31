@@ -7,6 +7,7 @@ struct ConnectionsView: View {
     @State private var isLoading = true
     @State private var preloadedImages: [String: UIImage] = [:]
     @Namespace private var animation
+    @State private var isRefreshing = false
     
     var body: some View {
         NavigationView {
@@ -14,6 +15,7 @@ struct ConnectionsView: View {
                 if isLoading {
                     ProgressView()
                         .scaleEffect(1.5)
+                        .transition(.opacity)
                 } else {
                     ScrollView {
                         if searchText.isEmpty && connectionService.connections.isEmpty {
@@ -22,10 +24,12 @@ struct ConnectionsView: View {
                                 systemImage: "person.2.slash",
                                 description: Text("Search to connect with others")
                             )
+                            .transition(.opacity)
                         } else if userService.isSearching {
                             ProgressView()
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 .padding(.top, 100)
+                                .transition(.opacity)
                         } else if !searchText.isEmpty {
                             // Search results view
                             LazyVStack(spacing: 0) {
@@ -45,7 +49,8 @@ struct ConnectionsView: View {
                                             isConnected: connectionService.connections.contains { $0.id == user.id }
                                         )
                                     }
-                                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+                                    .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
+                                                         removal: .opacity))
                                     Divider()
                                 }
                             }
@@ -67,6 +72,7 @@ struct ConnectionsView: View {
                                                 Image(systemName: "checkmark.circle.fill")
                                                     .foregroundColor(.green)
                                             }
+                                            .opacity(isRefreshing ? 0.6 : 1.0)
                                             
                                             // Card preview if available
                                             if let card = user.card {
@@ -87,19 +93,28 @@ struct ConnectionsView: View {
                                         )
                                     }
                                     .buttonStyle(PlainButtonStyle())
-                                    .transition(.move(edge: .trailing))
+                                    .transition(.asymmetric(insertion: .scale.combined(with: .opacity),
+                                                         removal: .opacity))
                                 }
                                 .padding(.horizontal, CardDimensions.horizontalPadding)
                             }
                             .padding(.vertical, CardDimensions.horizontalPadding)
                         }
                     }
+                    .refreshable {
+                        isRefreshing = true
+                        await fetchData()
+                        try? await Task.sleep(nanoseconds: 200_000_000) // Add slight delay for smoother transition
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            isRefreshing = false
+                        }
+                    }
                 }
             }
-            .animation(.spring(
-                response: CardDimensions.transitionDuration,
-                dampingFraction: CardDimensions.springDamping
-            ), value: searchText)
+            .animation(.easeInOut(duration: 0.3), value: isLoading)
+            .animation(.easeInOut(duration: 0.3), value: searchText)
+            .animation(.easeInOut(duration: 0.3), value: userService.isSearching)
+            .animation(.easeInOut(duration: 0.3), value: connectionService.connections)
             .navigationTitle("Network")
             .searchable(text: $searchText, prompt: "Search users")
             .onChange(of: searchText) { _, newValue in
