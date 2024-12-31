@@ -18,6 +18,7 @@ struct MainView: View {
     @State private var selectedImage: UIImage?
     @State private var isDarkMode = true
     @Namespace private var themeAnimation
+    @State private var showQRCode = false
     
     private func fetchInitialData() async {
         guard let userId = authService.user?.uid else { return }
@@ -25,6 +26,9 @@ struct MainView: View {
         do {
             // Fetch user data
             try await userService.fetchCurrentUser()
+            
+            // Ensure user has QR code
+            try await userService.ensureUserHasQRCode()
             
             // Fetch card data
             if let card = try await cardService.fetchUserCard(userId: userId) {
@@ -141,6 +145,22 @@ struct MainView: View {
         .onDisappear {
             connectionService.stopRequestsListener()
         }
+        .sheet(isPresented: $showQRCode) {
+            if let username = userService.currentUser?.username {
+                NavigationView {
+                    ProfileQRCodeView(username: username)
+                        .navigationTitle("Your QR Code")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                Button("Done") {
+                                    showQRCode = false
+                                }
+                            }
+                        }
+                }
+            }
+        }
     }
     
     private var homeView: some View {
@@ -193,6 +213,61 @@ struct MainView: View {
                             .padding(.horizontal, 12)
                         }
                     }
+                    
+                    if let currentUser = userService.currentUser {
+                        VStack(spacing: 16) {
+                            // Profile section
+                            HStack {
+                                if let card = cardService.userCard,
+                                   let imageURL = card.profilePictureURL {
+                                    AsyncImage(url: URL(string: imageURL)) { image in
+                                        image
+                                            .resizable()
+                                            .scaledToFill()
+                                    } placeholder: {
+                                        defaultProfileImage
+                                    }
+                                    .frame(width: 60, height: 60)
+                                    .clipShape(Circle())
+                                } else {
+                                    defaultProfileImage
+                                }
+                                
+                                VStack(alignment: .leading) {
+                                    Text("@\(currentUser.username)")
+                                        .font(.headline)
+                                    if let card = cardService.userCard {
+                                        Text(card.title)
+                                            .font(.subheadline)
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                                
+                                Spacer()
+                                
+                                // QR Code Preview
+                                if let qrCodeURL = currentUser.qrCodeURL {
+                                    AsyncImage(url: URL(string: qrCodeURL)) { image in
+                                        image
+                                            .resizable()
+                                            .interpolation(.none)
+                                            .scaledToFit()
+                                            .frame(width: 50, height: 50)
+                                            .onTapGesture {
+                                                showQRCode = true
+                                            }
+                                    } placeholder: {
+                                        Image(systemName: "qrcode")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 50, height: 50)
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
                 }
                 .padding(.top, 8)
             }
@@ -241,6 +316,17 @@ struct MainView: View {
                     .environmentObject(connectionService)
             }
         }
+    }
+    
+    private var defaultProfileImage: some View {
+        Circle()
+            .fill(Color.gray.opacity(0.2))
+            .frame(width: 60, height: 60)
+            .overlay(
+                Image(systemName: "person.circle.fill")
+                    .font(.system(size: 30))
+                    .foregroundColor(.gray)
+            )
     }
 }
 

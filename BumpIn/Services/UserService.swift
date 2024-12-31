@@ -4,6 +4,7 @@ import FirebaseAuth
 @MainActor
 class UserService: ObservableObject {
     private let db = Firestore.firestore()
+    private let qrCodeService = QRCodeService()
     @Published var currentUser: User?
     @Published var searchResults: [User] = []
     @Published var isSearching = false
@@ -96,31 +97,44 @@ class UserService: ObservableObject {
     }
     
     func createUser(username: String) async throws {
-        guard let authUser = Auth.auth().currentUser else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Not authenticated"])
+        guard let userId = Auth.auth().currentUser?.uid else {
+            throw AuthError.notAuthenticated
         }
         
         // Validate username before creating user
         try await validateUsername(username)
         
+        // Generate and save QR code
+        let qrCodeURL = try await qrCodeService.generateAndSaveProfileQRCode(for: username)
+        
         let user = User(
-            id: authUser.uid,
+            id: userId,
             username: username.lowercased(), // Always store lowercase
-            card: nil
+            card: nil,
+            qrCodeURL: qrCodeURL
         )
         
-        let userData = try JSONEncoder().encode(user)
-        guard let dict = try JSONSerialization.jsonObject(with: userData) as? [String: Any] else {
+        let data = try JSONEncoder().encode(user)
+        guard let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode user"])
         }
         
-        try await db.collection("users").document(authUser.uid).setData(dict)
+        try await db.collection("users").document(userId).setData(dict)
         currentUser = user
+    }
+    
+    func updateUser(_ user: User) async throws {
+        let data = try JSONEncoder().encode(user)
+        let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+        try await db.collection("users").document(user.id).setData(dict, merge: true)
+        if user.id == Auth.auth().currentUser?.uid {
+            self.currentUser = user
+        }
     }
     
     func fetchCurrentUser() async throws {
         guard let userId = Auth.auth().currentUser?.uid else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Not authenticated"])
+            throw AuthError.notAuthenticated
         }
         
         let document = try await db.collection("users").document(userId).getDocument()
@@ -129,7 +143,8 @@ class UserService: ObservableObject {
         }
         
         let jsonData = try JSONSerialization.data(withJSONObject: data)
-        currentUser = try JSONDecoder().decode(User.self, from: jsonData)
+        let user = try JSONDecoder().decode(User.self, from: jsonData)
+        await MainActor.run { self.currentUser = user }
     }
     
     func isUsernameAvailable(_ username: String) async throws -> Bool {
@@ -142,7 +157,7 @@ class UserService: ObservableObject {
     // Search users by username
     func searchUsers(query: String) async throws {
         guard !query.isEmpty else {
-            await MainActor.run { searchResults = [] }
+            await MainActor.run { self.searchResults = [] }
             return
         }
         
@@ -251,6 +266,25 @@ class UserService: ObservableObject {
         
         await MainActor.run {
             blockedUsers = userIds
+        }
+    }
+    
+    func ensureUserHasQRCode() async throws {
+        guard let currentUser = currentUser else {
+            throw AuthError.notAuthenticated
+        }
+        
+        if currentUser.qrCodeURL == nil {
+            // Generate and save QR code
+            let qrCodeURL = try await qrCodeService.generateAndSaveProfileQRCode(for: currentUser.username)
+            
+            var updatedUser = currentUser
+            updatedUser.qrCodeURL = qrCodeURL
+            
+            try await updateUser(updatedUser)
+            
+            // Fetch the updated user data to ensure we have the latest
+            try await fetchCurrentUser()
         }
     }
 } 
