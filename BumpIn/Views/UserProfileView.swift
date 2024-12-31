@@ -11,6 +11,7 @@ struct UserProfileView: View {
     @State private var isLoading = false
     @State private var showDisconnectConfirmation = false
     @State private var showUnfollowAlert = false
+    @State private var showQRCode = false
     
     var body: some View {
         ScrollView {
@@ -164,6 +165,16 @@ struct UserProfileView: View {
                 .shadow(color: .black.opacity(0.1), radius: 10)
                 .padding()
                 
+                // Add QR code button
+                Button {
+                    showQRCode = true
+                } label: {
+                    Image(systemName: "qrcode")
+                        .font(.system(size: 20))
+                        .foregroundColor(.gray)
+                }
+                .padding(.top, 8)
+                
                 // Business Card Section
                 if let card = user.card {
                     VStack(alignment: .leading, spacing: 16) {
@@ -252,6 +263,20 @@ struct UserProfileView: View {
             }
         } message: {
             Text("Are you sure you want to remove @\(user.username) from your connections?")
+        }
+        .sheet(isPresented: $showQRCode) {
+            NavigationView {
+                ProfileQRCodeView(username: user.username)
+                    .navigationTitle("Profile QR Code")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Done") {
+                                showQRCode = false
+                            }
+                        }
+                    }
+            }
         }
     }
     

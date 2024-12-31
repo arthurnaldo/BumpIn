@@ -20,17 +20,17 @@ struct ConnectionRequestRow: View {
             if !isLoading {
                 HStack(spacing: 12) {
                     Button {
-                        handleRequest(accept: true)
+                        handleRequest()
                     } label: {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
                     }
                     
                     Button {
-                        handleRequest(accept: false)
+                        connectionService.pendingRequests.removeAll { $0.id == request.id }
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.red)
+                            .foregroundColor(.gray)
                     }
                 }
             } else {
@@ -41,11 +41,11 @@ struct ConnectionRequestRow: View {
         .padding(.vertical, 4)
     }
     
-    private func handleRequest(accept: Bool) {
+    private func handleRequest() {
         isLoading = true
         Task {
             do {
-                try await connectionService.handleConnectionRequest(request, accept: accept)
+                try await connectionService.handleConnectionRequest(request, accept: true)
             } catch {
                 print("Error handling request: \(error.localizedDescription)")
             }

@@ -6,7 +6,7 @@ struct NotificationView: View {
     
     var body: some View {
         NavigationView {
-            List {
+            ScrollView {
                 if connectionService.pendingRequests.isEmpty {
                     ContentUnavailableView(
                         "No Notifications",
@@ -14,8 +14,12 @@ struct NotificationView: View {
                         description: Text("You have no pending requests")
                     )
                 } else {
-                    ForEach(connectionService.pendingRequests) { request in
-                        ConnectionRequestRow(request: request)
+                    VStack(spacing: 0) {
+                        ForEach(connectionService.pendingRequests) { request in
+                            ConnectionRequestRow(request: request)
+                                .padding(.horizontal)
+                            Divider()
+                        }
                     }
                 }
             }
