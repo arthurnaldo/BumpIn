@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SearchView: View {
     @EnvironmentObject var userService: UserService
+    @EnvironmentObject var connectionService: ConnectionService
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
     @State private var showError = false
@@ -29,7 +30,7 @@ struct SearchView: View {
                     )
                 } else {
                     List(userService.searchResults) { user in
-                        NavigationLink(destination: UserProfileView(user: user)) {
+                        NavigationLink(destination: UserProfileView(user: user).environmentObject(connectionService)) {
                             UserRow(user: user)
                         }
                         .swipeActions(edge: .trailing) {

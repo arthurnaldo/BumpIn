@@ -31,7 +31,7 @@ struct ConnectionsView: View {
                             }
                             return user1.username < user2.username
                         }) { user in
-                            NavigationLink(destination: UserProfileView(user: user)) {
+                            NavigationLink(destination: UserProfileView(user: user).environmentObject(connectionService)) {
                                 NetworkUserRow(
                                     user: user,
                                     showConnectionStatus: true,
@@ -47,7 +47,7 @@ struct ConnectionsView: View {
                     // Connections view
                     LazyVStack(spacing: CardDimensions.horizontalPadding) {
                         ForEach(connectionService.connections) { user in
-                            NavigationLink(destination: UserProfileView(user: user)) {
+                            NavigationLink(destination: UserProfileView(user: user).environmentObject(connectionService)) {
                                 VStack(alignment: .leading, spacing: 8) {
                                     // Username and connection status
                                     HStack {

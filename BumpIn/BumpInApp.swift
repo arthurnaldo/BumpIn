@@ -22,6 +22,7 @@ struct BumpInApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var cardService = BusinessCardService()
     @StateObject private var userService = UserService()
+    @StateObject private var connectionService = ConnectionService()
     @State private var foundUser: User?
     @State private var showUserProfile = false
     @State private var errorMessage: String?
@@ -32,6 +33,7 @@ struct BumpInApp: App {
             ContentView()
                 .environmentObject(cardService)
                 .environmentObject(userService)
+                .environmentObject(connectionService)
                 .onOpenURL { url in
                     print("\n🔗 Processing URL: \(url.absoluteString)")
                     
@@ -91,6 +93,7 @@ struct BumpInApp: App {
                     if let user = foundUser {
                         NavigationView {
                             UserProfileView(user: user)
+                                .environmentObject(connectionService)
                         }
                     }
                 }
