@@ -192,8 +192,10 @@ struct MainView: View {
                                 if let username = userService.currentUser?.username {
                                     let sharingService = CardSharingService(cardService: cardService)
                                     let profileLink = sharingService.generateProfileLink(for: username)
+                                    let message = "🌟 Let's connect on BumpIn!\n\n👋 Check out my digital business card: \(profileLink)\n\n📱 Download BumpIn on the App Store and join the future of networking!"
+                                    
                                     let activityVC = UIActivityViewController(
-                                        activityItems: [profileLink],
+                                        activityItems: [message],
                                         applicationActivities: nil
                                     )
                                     if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
