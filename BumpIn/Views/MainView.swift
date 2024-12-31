@@ -60,15 +60,9 @@ struct MainView: View {
                         ToolbarItem(placement: .navigationBarTrailing) {
                             HStack {
                                 if let currentUser = userService.currentUser {
-                                    Button {
-                                        let sharingService = CardSharingService(cardService: cardService)
-                                        sharingService.copyProfileLinkToClipboard(for: currentUser.username)
-                                    } label: {
-                                        Image(systemName: "person.crop.circle.badge.plus")
-                                    }
+                                    NotificationButton()
+                                        .environmentObject(connectionService)
                                 }
-                                NotificationButton()
-                                    .environmentObject(connectionService)
                             }
                         }
                     }
@@ -164,19 +158,19 @@ struct MainView: View {
     }
     
     private var homeView: some View {
-        NavigationView {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 8) {
-                    if let card = cardService.userCard {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Your Card")
-                                .font(.system(size: 20, weight: .semibold))
-                                .padding(.horizontal, CardDimensions.horizontalPadding)
-                            
-                            BusinessCardPreview(card: card, showFull: false, selectedImage: nil)
-                                .frame(height: CardDimensions.previewHeight)
-                                .padding(.horizontal, CardDimensions.horizontalPadding)
-                            
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 8) {
+                if let card = cardService.userCard {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Your Card")
+                            .font(.system(size: 20, weight: .semibold))
+                            .padding(.horizontal, CardDimensions.horizontalPadding)
+                        
+                        BusinessCardPreview(card: card, showFull: false, selectedImage: nil)
+                            .frame(height: CardDimensions.previewHeight)
+                            .padding(.horizontal, CardDimensions.horizontalPadding)
+                        
+                        HStack(spacing: 16) {
                             // QR Code Button
                             Button {
                                 showQRCode = true
@@ -192,29 +186,57 @@ struct MainView: View {
                                 .background(card.colorScheme.primary)
                                 .cornerRadius(12)
                             }
-                            .padding(.horizontal, CardDimensions.horizontalPadding)
-                            .padding(.top, 8)
-                        }
-                    } else {
-                        Button(action: { selectedTab = 1 }) {
-                            VStack(spacing: 12) {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.system(size: 40))
-                                Text("Create Your Card")
-                                    .font(.headline)
+                            
+                            // Share Button
+                            Button {
+                                if let username = userService.currentUser?.username {
+                                    let sharingService = CardSharingService(cardService: cardService)
+                                    let profileLink = sharingService.generateProfileLink(for: username)
+                                    let activityVC = UIActivityViewController(
+                                        activityItems: [profileLink],
+                                        applicationActivities: nil
+                                    )
+                                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                                       let window = windowScene.windows.first,
+                                       let rootVC = window.rootViewController {
+                                        rootVC.present(activityVC, animated: true)
+                                    }
+                                }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "square.and.arrow.up")
+                                    Text("Share Profile")
+                                }
+                                .font(.system(.body, weight: .medium))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(card.colorScheme.primary)
+                                .cornerRadius(12)
                             }
-                            .foregroundColor(.blue)
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.blue.opacity(0.1))
-                            )
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, CardDimensions.horizontalPadding)
+                        .padding(.top, 8)
                     }
+                } else {
+                    Button(action: { selectedTab = 1 }) {
+                        VStack(spacing: 12) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 40))
+                            Text("Create Your Card")
+                                .font(.headline)
+                        }
+                        .foregroundColor(.blue)
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.blue.opacity(0.1))
+                        )
+                    }
+                    .padding(.horizontal)
                 }
-                .padding(.top, 8)
             }
+            .padding(.top, 8)
         }
     }
     

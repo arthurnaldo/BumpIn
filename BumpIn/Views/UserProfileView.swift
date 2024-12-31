@@ -36,7 +36,7 @@ struct UserProfileView: View {
                         )
                     }
                     
-                    QRCodeButton(showQRCode: $showQRCode)
+                    QRCodeButton(showQRCode: $showQRCode, username: user.username)
                     
                     BusinessCardSection(card: card)
                     
@@ -355,17 +355,50 @@ private struct ConnectionButton: View {
 
 private struct QRCodeButton: View {
     @Binding var showQRCode: Bool
+    let username: String
+    @State private var showShareSheet = false
     
     var body: some View {
-        Button {
-            showQRCode = true
-        } label: {
-            Image(systemName: "qrcode")
-                .font(.system(size: 20))
+        HStack(spacing: 16) {
+            Button {
+                showQRCode = true
+            } label: {
+                HStack {
+                    Image(systemName: "qrcode")
+                    Text("View QR Code")
+                }
+                .font(.system(size: 16))
                 .foregroundColor(.gray)
+            }
+            
+            Button {
+                showShareSheet = true
+            } label: {
+                HStack {
+                    Image(systemName: "square.and.arrow.up")
+                    Text("Share Profile")
+                }
+                .font(.system(size: 16))
+                .foregroundColor(.gray)
+            }
         }
         .padding(.top, 8)
+        .sheet(isPresented: $showShareSheet) {
+            let sharingService = CardSharingService(cardService: BusinessCardService())
+            let profileLink = sharingService.generateProfileLink(for: username)
+            ShareSheet(activityItems: [profileLink])
+        }
     }
+}
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+    
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 private struct BusinessCardSection: View {
