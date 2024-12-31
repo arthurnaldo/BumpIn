@@ -59,7 +59,6 @@ struct CreateCardView: View {
     @State private var showImagePicker = false
     @State private var selectedImage: UIImage?
     @State private var selectedRole: PersonRole = .professional
-    @State private var isUploadingImage = false
     @State private var showEmoticonPicker = false
     @State private var showEmojiPicker = false
     @Binding var selectedTab: Int
@@ -84,6 +83,10 @@ struct CreateCardView: View {
                     // Add spacing for the pinned preview
                     Spacer()
                         .frame(height: 280)
+                    
+                    // Profile Picture Section
+                    profilePictureSection
+                        .padding(.horizontal)
                     
                     // Your existing sections
                     personalInfoSection
@@ -495,12 +498,6 @@ struct CreateCardView: View {
                     Text(businessCard.profilePictureURL != nil ? "Change Photo" : "Add Photo")
                         .foregroundColor(.blue)
                 }
-                .disabled(isUploadingImage)
-                
-                if isUploadingImage {
-                    Spacer()
-                    ProgressView()
-                }
             }
             .padding(.vertical, 8)
         } header: {
@@ -528,15 +525,6 @@ struct CreateCardView: View {
                 return
             }
             
-            if let image = selectedImage {
-                do {
-                    let url = try await cardService.uploadCardProfilePicture(cardId: businessCard.id, image: image)
-                    businessCard.profilePictureURL = url
-                } catch {
-                    print("Error uploading profile image: \(error.localizedDescription)")
-                }
-            }
-            
             try await cardService.saveCard(businessCard, userId: userId)
             
             // After successful save, switch to home tab
@@ -547,21 +535,6 @@ struct CreateCardView: View {
             showAlert = true
         }
         isLoading = false
-    }
-    
-    private func uploadProfilePicture(_ image: UIImage) {
-        isUploadingImage = true
-        
-        Task {
-            do {
-                let url = try await cardService.uploadCardProfilePicture(cardId: businessCard.id, image: image)
-                businessCard.profilePictureURL = url
-                isUploadingImage = false
-            } catch {
-                print("Failed to upload profile picture: \(error.localizedDescription)")
-                isUploadingImage = false
-            }
-        }
     }
 }
 

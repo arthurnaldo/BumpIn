@@ -4,12 +4,18 @@ struct ConnectionsView: View {
     @EnvironmentObject var connectionService: ConnectionService
     @EnvironmentObject var userService: UserService
     @State private var searchText = ""
+    @State private var isLoading = true
     @Namespace private var animation
     
     var body: some View {
         NavigationView {
             ScrollView {
-                if searchText.isEmpty && connectionService.connections.isEmpty {
+                if isLoading {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.top, 100)
+                } else if searchText.isEmpty && connectionService.connections.isEmpty {
                     ContentUnavailableView(
                         "No Connections",
                         systemImage: "person.2.slash",
@@ -108,6 +114,10 @@ struct ConnectionsView: View {
             try await connectionService.fetchConnections()
         } catch {
             print("Failed to fetch data: \(error.localizedDescription)")
+        }
+        
+        await MainActor.run {
+            isLoading = false
         }
     }
 } 

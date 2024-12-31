@@ -219,6 +219,24 @@ struct MainView: View {
                         }
                         .padding(.horizontal, CardDimensions.horizontalPadding)
                         .padding(.top, 8)
+                        
+                        // Search for Friends Button
+                        Button {
+                            selectedTab = 2  // Switch to network tab
+                        } label: {
+                            HStack {
+                                Image(systemName: "magnifyingglass")
+                                Text("Search for Friends")
+                            }
+                            .font(.system(.body, weight: .medium))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(card.colorScheme.primary)
+                            .cornerRadius(12)
+                        }
+                        .padding(.horizontal, CardDimensions.horizontalPadding)
+                        .padding(.top, 8)
                     }
                 } else {
                     Button(action: { selectedTab = 1 }) {
