@@ -9,6 +9,9 @@ class UserService: ObservableObject {
     @Published var searchResults: [User] = []
     @Published var isSearching = false
     @Published var blockedUsers: Set<String> = []
+    private var signupUsername: String?  // Add storage for signup username
+    private var isCreatingUser = false  // Add flag for user creation state
+    private var pendingUser: User?  // Add storage for pending user
     
     private let cache = CacheManager.shared
     
@@ -97,56 +100,73 @@ class UserService: ObservableObject {
     }
     
     func createUser(username: String) async throws {
+        isCreatingUser = true  // Set flag when starting user creation
+        defer { isCreatingUser = false }  // Reset flag when done
+        
+        print("📝 Starting createUser with username: \(username)")
+        
         guard let userId = Auth.auth().currentUser?.uid else {
+            print("❌ No authenticated user found in createUser")
             throw AuthError.notAuthenticated
         }
         
+        print("👤 User ID: \(userId)")
+        signupUsername = username
+        print("✅ Stored signup username: \(username)")
+        
         // Validate username before creating user
         try await validateUsername(username)
+        print("✅ Username validated successfully")
         
         // Generate and save QR code
         let qrCodeURL = try await qrCodeService.generateAndSaveProfileQRCode(for: username)
+        print("✅ Generated QR code URL: \(qrCodeURL)")
         
-        // Create an empty business card
-        let card = BusinessCard(
-            id: UUID().uuidString,
-            userId: userId,
-            name: "",
-            title: "",
-            company: "",
-            email: "",
-            phone: "",
-            linkedin: "",
-            website: "",
-            aboutMe: "",
-            profilePictureURL: nil,
-            qrCodeURL: nil,
-            colorScheme: CardColorScheme(),
-            fontStyle: .modern,
-            layoutStyle: .classic,
-            textScale: 1.0,
-            backgroundStyle: .gradient,
-            showSymbols: false,
-            isVertical: false
-        )
-        
-        // Save the empty card
-        let cardData = try JSONEncoder().encode(card)
-        guard let cardDict = try JSONSerialization.jsonObject(with: cardData) as? [String: Any] else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode card"])
-        }
-        
+        // Create the user object
         let user = User(
             id: userId,
             username: username.lowercased(),
-            card: card,
+            card: BusinessCard(
+                id: UUID().uuidString,
+                userId: userId,
+                name: "",
+                title: "",
+                company: "",
+                email: "",
+                phone: "",
+                linkedin: "",
+                website: "",
+                aboutMe: "",
+                profilePictureURL: nil,
+                qrCodeURL: qrCodeURL,
+                colorScheme: CardColorScheme(),
+                fontStyle: .modern,
+                layoutStyle: .classic,
+                textScale: 1.0,
+                backgroundStyle: .gradient,
+                showSymbols: false,
+                isVertical: false
+            ),
             qrCodeURL: qrCodeURL
         )
         
+        print("✅ Created user object with username: \(user.username)")
+        
+        // Store the pending user before Firestore operations
+        pendingUser = user
+        print("✅ Stored pending user object")
+        
+        // Encode and save to Firestore
         let userData = try JSONEncoder().encode(user)
-        guard let userDict = try JSONSerialization.jsonObject(with: userData) as? [String: Any] else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode user"])
+        let cardData = try JSONEncoder().encode(user.card)
+        
+        guard let userDict = try JSONSerialization.jsonObject(with: userData) as? [String: Any],
+              let cardDict = try JSONSerialization.jsonObject(with: cardData) as? [String: Any] else {
+            print("❌ Failed to encode user or card data")
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode data"])
         }
+        
+        print("✅ Encoded user and card data")
         
         // Use a batch write to save both user and card
         let batch = db.batch()
@@ -157,7 +177,13 @@ class UserService: ObservableObject {
         batch.setData(cardDict, forDocument: cardRef)
         
         try await batch.commit()
-        currentUser = user
+        print("✅ Successfully saved user and card to Firestore")
+        
+        // Set currentUser after successful write
+        await MainActor.run {
+            self.currentUser = user
+            print("✅ Set currentUser after successful write")
+        }
     }
     
     func updateUser(_ user: User) async throws {
@@ -170,85 +196,130 @@ class UserService: ObservableObject {
     }
     
     func fetchCurrentUser() async throws {
+        print("\n🔍 Starting fetchCurrentUser")
+        
         guard let userId = Auth.auth().currentUser?.uid,
               let email = Auth.auth().currentUser?.email else {
+            print("❌ No authenticated user found in fetchCurrentUser")
             throw AuthError.notAuthenticated
         }
         
+        // If we have a pending user, use it
+        if let pending = pendingUser {
+            print("✅ Found pending user: \(pending.username)")
+            self.currentUser = pending
+            pendingUser = nil  // Clear pending user
+            return
+        }
+        
+        // If we're currently creating a user, wait a bit
+        if isCreatingUser {
+            print("⏳ Waiting for user creation to complete...")
+            for _ in 0..<5 {  // Try up to 5 times
+                try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5 second delay
+                if !isCreatingUser {
+                    break
+                }
+            }
+        }
+        
+        print("👤 User ID: \(userId)")
+        print("📧 Email: \(email)")
+        
+        // First check if we already have the user in memory
+        if let existingUser = currentUser {
+            print("✅ Found existing user in memory: \(existingUser.username)")
+            return
+        }
+        print("ℹ️ No user found in memory, checking Firestore")
+        
         let document = try await db.collection("users").document(userId).getDocument()
         if let data = document.data() {
+            print("✅ Found user data in Firestore")
             let jsonData = try JSONSerialization.data(withJSONObject: data)
             let user = try JSONDecoder().decode(User.self, from: jsonData)
-            await MainActor.run { self.currentUser = user }
+            print("✅ Successfully decoded user: \(user.username)")
+            await MainActor.run { 
+                self.currentUser = user
+                print("✅ Set currentUser from Firestore data")
+            }
         } else {
-            // If no user data found, create an empty card
-            let card = BusinessCard(
-                id: UUID().uuidString,
-                userId: userId,
-                name: "",
-                title: "",
-                company: "",
-                email: email,
-                phone: "",
-                linkedin: "",
-                website: "",
-                aboutMe: "",
-                profilePictureURL: nil,
-                qrCodeURL: nil,
-                colorScheme: CardColorScheme(),
-                fontStyle: .modern,
-                layoutStyle: .classic,
-                textScale: 1.0,
-                backgroundStyle: .gradient,
-                showSymbols: false,
-                isVertical: false
-            )
-            
-            // Save the empty card
-            let cardData = try JSONEncoder().encode(card)
-            guard let cardDict = try JSONSerialization.jsonObject(with: cardData) as? [String: Any] else {
-                throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode card"])
+            print("⚠️ No user data found in Firestore")
+            // Add a small delay and try one more time
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second delay
+            let retryDocument = try await db.collection("users").document(userId).getDocument()
+            if let retryData = retryDocument.data() {
+                print("✅ Found user data in Firestore on retry")
+                let jsonData = try JSONSerialization.data(withJSONObject: retryData)
+                let user = try JSONDecoder().decode(User.self, from: jsonData)
+                print("✅ Successfully decoded user: \(user.username)")
+                await MainActor.run { 
+                    self.currentUser = user
+                    print("✅ Set currentUser from Firestore data")
+                }
+                return
             }
             
-            // Generate a unique username from email
-            var baseUsername = email.split(separator: "@").first?.lowercased() ?? email.lowercased()
-            var username = baseUsername
-            var counter = 1
-            
-            // Keep trying until we find an available username
-            while !(try await isUsernameAvailable(username)) {
-                username = "\(baseUsername)\(counter)"
-                counter += 1
+            if let username = signupUsername {
+                print("✅ Found signup username: \(username), creating new user")
+                // Create an empty card
+                let card = BusinessCard(
+                    id: UUID().uuidString,
+                    userId: userId,
+                    name: "",
+                    title: "",
+                    company: "",
+                    email: email,
+                    phone: "",
+                    linkedin: "",
+                    website: "",
+                    aboutMe: "",
+                    profilePictureURL: nil,
+                    qrCodeURL: nil,
+                    colorScheme: CardColorScheme(),
+                    fontStyle: .modern,
+                    layoutStyle: .classic,
+                    textScale: 1.0,
+                    backgroundStyle: .gradient,
+                    showSymbols: false,
+                    isVertical: false
+                )
+                
+                // Save the empty card
+                let cardData = try JSONEncoder().encode(card)
+                guard let cardDict = try JSONSerialization.jsonObject(with: cardData) as? [String: Any] else {
+                    throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode card"])
+                }
+                
+                // Generate QR code
+                let qrCodeURL = try await qrCodeService.generateAndSaveProfileQRCode(for: username)
+                
+                let user = User(
+                    id: userId,
+                    username: username,
+                    card: card,
+                    qrCodeURL: qrCodeURL
+                )
+                
+                let userData = try JSONEncoder().encode(user)
+                guard let userDict = try JSONSerialization.jsonObject(with: userData) as? [String: Any] else {
+                    throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode user"])
+                }
+                
+                // Use a batch write to save both user and card
+                let batch = db.batch()
+                let userRef = db.collection("users").document(userId)
+                let cardRef = db.collection("cards").document(userId)
+                
+                batch.setData(userDict, forDocument: userRef)
+                batch.setData(cardDict, forDocument: cardRef)
+                
+                try await batch.commit()
+                await MainActor.run { self.currentUser = user }
+            } else {
+                print("❌ No signup username found")
+                throw AuthError.userNotFound
             }
-            
-            // Validate the username
-            try await validateUsername(username)
-            
-            // Generate QR code
-            let qrCodeURL = try await qrCodeService.generateAndSaveProfileQRCode(for: username)
-            
-            let user = User(
-                id: userId,
-                username: username,
-                card: card,
-                qrCodeURL: qrCodeURL
-            )
-            
-            let userData = try JSONEncoder().encode(user)
-            guard let userDict = try JSONSerialization.jsonObject(with: userData) as? [String: Any] else {
-                throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode user"])
-            }
-            
-            // Use a batch write to save both user and card
-            let batch = db.batch()
-            let userRef = db.collection("users").document(userId)
-            let cardRef = db.collection("cards").document(userId)
-            
-            batch.setData(userDict, forDocument: userRef)
-            batch.setData(cardDict, forDocument: cardRef)
-            
-            try await batch.commit()
-            await MainActor.run { self.currentUser = user }
         }
     }
     

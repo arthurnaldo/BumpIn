@@ -205,9 +205,18 @@ struct LoginView: View {
                                     }
                                     
                                     do {
+                                        // First create the Firebase Auth user
                                         try await Auth.auth().createUser(withEmail: email, password: password)
+                                        // Then create the user document
                                         try await userService.createUser(username: username)
-                                        isAuthenticated = true
+                                        // Verify the user was created successfully
+                                        try await userService.fetchCurrentUser()
+                                        if userService.currentUser?.username == username {
+                                            // Only set authenticated after confirming user creation
+                                            isAuthenticated = true
+                                        } else {
+                                            throw AuthError.userNotFound
+                                        }
                                     } catch {
                                         showError = true
                                         authService.errorMessage = error.localizedDescription
@@ -267,7 +276,11 @@ struct LoginView: View {
             }
         }
         .onReceive(authService.$user) { user in
-            isAuthenticated = user != nil
+            // Only set authenticated state if not in signup process
+            if !isSignUp {
+                isAuthenticated = user != nil
+            }
+            // For signup, we handle authentication manually after user creation
         }
     }
 } 
