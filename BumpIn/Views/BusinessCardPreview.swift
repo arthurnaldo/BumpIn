@@ -5,6 +5,7 @@ struct BusinessCardPreview: View {
     let showFull: Bool
     let selectedImage: UIImage?
     @State private var profileImage: UIImage?
+    @State private var isLoading = true
     @StateObject private var storageService = StorageService()
     
     init(card: BusinessCard, showFull: Bool, selectedImage: UIImage? = nil) {
@@ -15,41 +16,64 @@ struct BusinessCardPreview: View {
     
     var body: some View {
         Group {
-            VStack(spacing: 16) {
-                Group {
-                    switch card.layoutStyle {
-                    case .classic:
-                        classicLayout
-                    case .modern:
-                        modernLayout
-                    case .compact:
-                        compactLayout
-                    case .centered:
-                        centeredLayout
-                    case .minimal:
-                        minimalLayout
-                    case .elegant:
-                        elegantLayout
-                    case .professional:
-                        professionalLayout
-                    }
+            if isLoading {
+                VStack {
+                    Spacer()
+                    ProgressView()
+                        .scaleEffect(1.5)
+                    Spacer()
                 }
-                .transition(.opacity.combined(with: .scale))
+                .frame(maxWidth: .infinity)
+                .frame(height: showFull ? nil : 200)
+                .background(card.colorScheme.backgroundView(style: card.backgroundStyle))
+            } else {
+                VStack(spacing: 16) {
+                    Group {
+                        switch card.layoutStyle {
+                        case .classic:
+                            classicLayout
+                        case .modern:
+                            modernLayout
+                        case .compact:
+                            compactLayout
+                        case .centered:
+                            centeredLayout
+                        case .minimal:
+                            minimalLayout
+                        case .elegant:
+                            elegantLayout
+                        case .professional:
+                            professionalLayout
+                        }
+                    }
+                    .transition(.opacity.combined(with: .scale))
+                }
+                .padding(showFull ? 24 : 16)
+                .frame(maxWidth: .infinity)
+                .frame(height: showFull ? nil : 200)
+                .background(card.colorScheme.backgroundView(style: card.backgroundStyle))
+                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.layoutStyle)
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.colorScheme)
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.fontStyle)
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.backgroundStyle)
+                .overlay(
+                    Rectangle()
+                        .stroke(card.colorScheme.borderColor, lineWidth: card.colorScheme.borderWidth)
+                )
             }
-            .padding(showFull ? 24 : 16)
-            .frame(maxWidth: .infinity)
-            .frame(height: showFull ? nil : 200)
-            .background(card.colorScheme.backgroundView(style: card.backgroundStyle))
-            .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.layoutStyle)
-            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.colorScheme)
-            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.fontStyle)
-            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.backgroundStyle)
-            .overlay(
-                Rectangle()
-                    .stroke(card.colorScheme.borderColor, lineWidth: card.colorScheme.borderWidth)
-            )
-            .task {
+        }
+        .overlay {
+            if card.name.isEmpty {
+                ContentUnavailableView(
+                    "Card Unavailable",
+                    systemImage: "rectangle.on.rectangle.slash",
+                    description: Text("This user's business card cannot be displayed")
+                )
+            }
+        }
+        .task {
+            if selectedImage == nil {
                 if let imageURL = card.profilePictureURL {
                     print("🖼️ Loading profile image from URL: \(imageURL)")
                     do {
@@ -67,19 +91,15 @@ struct BusinessCardPreview: View {
                 } else {
                     print("ℹ️ No profile picture URL available")
                 }
+            } else {
+                profileImage = selectedImage
             }
-            .onAppear {
-                print("BusinessCardPreview appeared for card: \(card.name)")
+            await MainActor.run {
+                isLoading = false
             }
         }
-        .overlay {
-            if card.name.isEmpty {
-                ContentUnavailableView(
-                    "Card Unavailable",
-                    systemImage: "rectangle.on.rectangle.slash",
-                    description: Text("This user's business card cannot be displayed")
-                )
-            }
+        .onAppear {
+            print("BusinessCardPreview appeared for card: \(card.name)")
         }
     }
     

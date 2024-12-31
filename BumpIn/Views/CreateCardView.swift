@@ -458,9 +458,17 @@ struct CreateCardView: View {
     }
     
     private var profilePictureSection: some View {
-        Section {
-            HStack {
-                if let image = selectedImage {
+        FormSection(title: "Profile Picture") {
+            VStack {
+                if isLoading {
+                    Circle()
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(width: 80, height: 80)
+                        .overlay(
+                            ProgressView()
+                                .scaleEffect(1.5)
+                        )
+                } else if let image = selectedImage {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
@@ -478,9 +486,8 @@ struct CreateCardView: View {
                             .fill(Color.gray.opacity(0.2))
                             .frame(width: 80, height: 80)
                             .overlay(
-                                Image(systemName: "person.crop.circle")
-                                    .font(.system(size: 30))
-                                    .foregroundColor(.gray)
+                                ProgressView()
+                                    .scaleEffect(1.5)
                             )
                     }
                 } else {
@@ -500,12 +507,11 @@ struct CreateCardView: View {
                 }
             }
             .padding(.vertical, 8)
-        } header: {
-            Text("Profile Picture")
         }
     }
     
     private func loadProfileImage() async {
+        isLoading = true
         if let imageURL = businessCard.profilePictureURL {
             do {
                 selectedImage = try await storageService.loadProfileImage(from: imageURL)
@@ -513,6 +519,7 @@ struct CreateCardView: View {
                 print("Error loading profile image: \(error.localizedDescription)")
             }
         }
+        isLoading = false
     }
     
     private func saveCard() async {
