@@ -49,6 +49,7 @@ struct ConnectionsView: View {
                                             isConnected: connectionService.connections.contains { $0.id == user.id }
                                         )
                                     }
+                                    .buttonStyle(PlainButtonStyle())
                                     .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
                                                          removal: .opacity))
                                     Divider()

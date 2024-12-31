@@ -10,15 +10,15 @@ class ConnectionService: ObservableObject {
     @Published var sentRequests: [ConnectionRequest] = []
     private var requestsListener: ListenerRegistration?
     
-    func sendConnectionRequest(to user: User) async throws {
+    func sendConnectionRequest(to userId: String) async throws {
         guard let currentUser = Auth.auth().currentUser else { throw AuthError.notAuthenticated }
         
         print("🔄 Sending connection request:")
         print("- From user ID: \(currentUser.uid)")
-        print("- To user ID: \(user.id)")
+        print("- To user ID: \(userId)")
         
         // Prevent self-connection
-        if currentUser.uid == user.id {
+        if currentUser.uid == userId {
             print("❌ Attempted to send request to self")
             throw ConnectionError.invalidRequest
         }
@@ -27,7 +27,7 @@ class ConnectionService: ObservableObject {
         let existingConnection = try await db.collection("users")
             .document(currentUser.uid)
             .collection("connections")
-            .document(user.id)
+            .document(userId)
             .getDocument()
         
         if existingConnection.exists {
@@ -37,7 +37,7 @@ class ConnectionService: ObservableObject {
         
         // Check for existing requests
         let outgoingSnapshot = try await db.collection("users")
-            .document(user.id)
+            .document(userId)
             .collection("connectionRequests")
             .whereField("fromUserId", isEqualTo: currentUser.uid)
             .whereField("status", isEqualTo: ConnectionRequest.RequestStatus.pending.rawValue)
@@ -58,16 +58,24 @@ class ConnectionService: ObservableObject {
             throw ConnectionError.invalidRequest
         }
         
+        // Get recipient's username
+        let recipientDoc = try await db.collection("users").document(userId).getDocument()
+        guard let recipientData = recipientDoc.data(),
+              let recipientUsername = recipientData["username"] as? String else {
+            print("❌ Could not get recipient username")
+            throw ConnectionError.invalidRequest
+        }
+        
         print("👤 Sender username: \(senderUsername)")
-        print("👥 Recipient username: \(user.username)")
+        print("👥 Recipient username: \(recipientUsername)")
         
         // Create the request
         let request = ConnectionRequest(
             id: UUID().uuidString,
             fromUserId: currentUser.uid,
-            toUserId: user.id,
+            toUserId: userId,
             fromUsername: senderUsername,
-            toUsername: user.username,
+            toUsername: recipientUsername,
             status: .pending,
             timestamp: Date()
         )
@@ -85,7 +93,7 @@ class ConnectionService: ObservableObject {
         
         // Add to recipient's requests
         let recipientRef = db.collection("users")
-            .document(user.id)
+            .document(userId)
             .collection("connectionRequests")
             .document(request.id)
         batch.setData(dict, forDocument: recipientRef)

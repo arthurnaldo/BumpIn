@@ -35,7 +35,6 @@ struct UserProfileView: View {
                                     isConnected: $isConnected,
                                     hasRequestPending: $hasRequestPending,
                                     hasIncomingRequest: $hasIncomingRequest,
-                                    isLoading: $isLoading,
                                     showUnfollowAlert: $showUnfollowAlert,
                                     user: user,
                                     connectionService: connectionService,
@@ -60,17 +59,18 @@ struct UserProfileView: View {
             titleVisibility: .visible
         ) {
             Button("Disconnect", role: .destructive) {
-                isLoading = true
                 Task {
                     do {
                         try await connectionService.removeConnection(with: user.id)
-                        isConnected = false
-                        showDisconnectConfirmation = false
-                        await checkStatus()
+                        await MainActor.run {
+                            isConnected = false
+                            hasRequestPending = false
+                            hasIncomingRequest = false
+                            showDisconnectConfirmation = false
+                        }
                     } catch {
                         print("Connection action failed: \(error.localizedDescription)")
                     }
-                    isLoading = false
                 }
             }
             Button("Cancel", role: .cancel) { }
@@ -89,7 +89,16 @@ struct UserProfileView: View {
             Button("Cancel", role: .cancel) { }
             Button("Remove", role: .destructive) {
                 Task {
-                    try? await connectionService.removeConnection(with: user.id)
+                    do {
+                        try await connectionService.removeConnection(with: user.id)
+                        await MainActor.run {
+                            isConnected = false
+                            hasRequestPending = false
+                            hasIncomingRequest = false
+                        }
+                    } catch {
+                        print("Failed to remove connection: \(error.localizedDescription)")
+                    }
                 }
             }
         } message: {
@@ -239,7 +248,7 @@ private struct ConnectionButton: View {
     @Binding var isConnected: Bool
     @Binding var hasRequestPending: Bool
     @Binding var hasIncomingRequest: Bool
-    @Binding var isLoading: Bool
+    @State private var isButtonLoading = false
     @Binding var showUnfollowAlert: Bool
     let user: User
     let connectionService: ConnectionService
@@ -258,24 +267,26 @@ private struct ConnectionButton: View {
                 handleSendRequest()
             }
         }) {
-            HStack {
-                if isLoading {
+            HStack(spacing: 6) {
+                if isButtonLoading {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(0.8)
                 } else {
                     Image(systemName: connectionIcon)
+                        .font(.system(size: 14))
                     Text(buttonTitle)
-                        .bold()
+                        .font(.system(size: 14, weight: .semibold))
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
+            .frame(height: 30)
             .background(buttonBackground)
             .foregroundColor(buttonTextColor)
-            .cornerRadius(25)
+            .clipShape(Capsule())
             .overlay(
-                RoundedRectangle(cornerRadius: 25)
-                    .stroke(isConnected ? .gray : .clear, lineWidth: 1)
+                Capsule()
+                    .stroke(isConnected ? Color(.systemGray3) : .clear, lineWidth: 1)
             )
         }
         .padding(.horizontal, 20)
@@ -283,7 +294,7 @@ private struct ConnectionButton: View {
     }
     
     private func handleCancelRequest() {
-        isLoading = true
+        isButtonLoading = true
         Task {
             do {
                 try await connectionService.cancelConnectionRequest(to: user.id)
@@ -295,43 +306,47 @@ private struct ConnectionButton: View {
             } catch {
                 print("❌ Cancel request failed: \(error.localizedDescription)")
             }
-            isLoading = false
+            isButtonLoading = false
         }
     }
     
     private func handleAcceptRequest() {
-        isLoading = true
+        isButtonLoading = true
         Task {
             do {
-                if let request = try await connectionService.findPendingRequest(from: user.id) {
-                    try await connectionService.handleConnectionRequest(request, accept: true)
-                    isConnected = true
-                    hasIncomingRequest = false
-                    hasRequestPending = false
-                    print("✅ Successfully accepted request")
-                    await checkStatus()
+                if let request = try await Firestore.firestore()
+                    .collection("users")
+                    .document(Auth.auth().currentUser?.uid ?? "")
+                    .collection("connectionRequests")
+                    .whereField("fromUserId", isEqualTo: user.id)
+                    .whereField("status", isEqualTo: ConnectionRequest.RequestStatus.pending.rawValue)
+                    .getDocuments()
+                    .documents
+                    .first {
+                    let data = try JSONSerialization.data(withJSONObject: request.data())
+                    let connectionRequest = try JSONDecoder().decode(ConnectionRequest.self, from: data)
+                    try await connectionService.handleConnectionRequest(connectionRequest, accept: true)
                 }
+                await checkStatus()
             } catch {
                 print("❌ Accept request failed: \(error.localizedDescription)")
             }
-            isLoading = false
+            isButtonLoading = false
         }
     }
     
     private func handleSendRequest() {
-        isLoading = true
+        isButtonLoading = true
         Task {
             do {
-                try await connectionService.sendConnectionRequest(to: user)
+                try await connectionService.sendConnectionRequest(to: user.id)
                 hasRequestPending = true
-                isConnected = false
-                hasIncomingRequest = false
                 print("✅ Successfully sent request")
                 await checkStatus()
             } catch {
                 print("❌ Send request failed: \(error.localizedDescription)")
             }
-            isLoading = false
+            isButtonLoading = false
         }
     }
     
@@ -365,14 +380,18 @@ private struct ConnectionButton: View {
         } else if hasIncomingRequest {
             return .blue
         } else if hasRequestPending {
-            return .gray
+            return Color(.systemGray5)
         } else {
             return .blue
         }
     }
     
     private var buttonTextColor: Color {
-        isConnected ? .primary : .white
+        if isConnected || hasRequestPending {
+            return .primary
+        } else {
+            return .white
+        }
     }
 }
 
