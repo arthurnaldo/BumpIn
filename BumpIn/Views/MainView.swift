@@ -7,6 +7,7 @@ struct MainView: View {
     @StateObject private var cardService = BusinessCardService()
     @StateObject private var userService = UserService()
     @StateObject private var connectionService = ConnectionService()
+    @StateObject private var storageService = StorageService()
     @State private var showSignOutAlert = false
     @State private var showCreateCard = false
     @State private var showCardDetail = false
@@ -19,8 +20,11 @@ struct MainView: View {
     @State private var isDarkMode = true
     @Namespace private var themeAnimation
     @State private var showQRCode = false
+    @State private var isLoading = true
+    @State private var preloadedImage: UIImage?
     
     private func fetchInitialData() async {
+        isLoading = true
         guard let userId = authService.user?.uid else { return }
         
         do {
@@ -33,6 +37,15 @@ struct MainView: View {
             // Fetch card data
             if let card = try await cardService.fetchUserCard(userId: userId) {
                 cardService.userCard = card
+                
+                // Preload profile image if exists
+                if let imageURL = card.profilePictureURL {
+                    if let image = try? await storageService.loadProfileImage(from: imageURL) {
+                        await MainActor.run {
+                            preloadedImage = image
+                        }
+                    }
+                }
             }
             try await cardService.fetchContacts(userId: userId)
             
@@ -45,6 +58,10 @@ struct MainView: View {
                 errorMessage = error.localizedDescription
                 showError = true
             }
+        }
+        
+        await MainActor.run {
+            isLoading = false
         }
     }
     
@@ -59,7 +76,7 @@ struct MainView: View {
                         }
                         ToolbarItem(placement: .navigationBarTrailing) {
                             HStack {
-                                if let currentUser = userService.currentUser {
+                                if userService.currentUser != nil {
                                     NotificationButton()
                                         .environmentObject(connectionService)
                                 }
@@ -158,105 +175,112 @@ struct MainView: View {
     }
     
     private var homeView: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 8) {
-                if let card = cardService.userCard {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Your Card")
-                            .font(.system(size: 20, weight: .semibold))
-                            .padding(.horizontal, CardDimensions.horizontalPadding)
-                        
-                        BusinessCardPreview(card: card, showFull: false, selectedImage: nil)
-                            .frame(height: CardDimensions.previewHeight)
-                            .padding(.horizontal, CardDimensions.horizontalPadding)
-                        
-                        HStack(spacing: 16) {
-                            // QR Code Button
-                            Button {
-                                showQRCode = true
-                            } label: {
-                                HStack {
-                                    Image(systemName: "qrcode")
-                                    Text("View QR Code")
-                                }
-                                .font(.system(.body, weight: .medium))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(card.colorScheme.primary)
-                                .cornerRadius(12)
-                            }
-                            
-                            // Share Button
-                            Button {
-                                if let username = userService.currentUser?.username {
-                                    let sharingService = CardSharingService(cardService: cardService)
-                                    let profileLink = sharingService.generateProfileLink(for: username)
-                                    let message = "🌟 Let's connect on BumpIn!\n\n👋 Check out my digital business card: \(profileLink)\n\n📱 Download BumpIn on the App Store and join the future of networking!"
+        ZStack {
+            if isLoading {
+                ProgressView()
+                    .scaleEffect(1.5)
+            } else {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 8) {
+                        if let card = cardService.userCard {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Your Card")
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .padding(.horizontal, CardDimensions.horizontalPadding)
+                                
+                                BusinessCardPreview(card: card, showFull: false, selectedImage: preloadedImage)
+                                    .frame(height: CardDimensions.previewHeight)
+                                    .padding(.horizontal, CardDimensions.horizontalPadding)
+                                
+                                HStack(spacing: 16) {
+                                    // QR Code Button
+                                    Button {
+                                        showQRCode = true
+                                    } label: {
+                                        HStack {
+                                            Image(systemName: "qrcode")
+                                            Text("View QR Code")
+                                        }
+                                        .font(.system(.body, weight: .medium))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(card.colorScheme.primary)
+                                        .cornerRadius(12)
+                                    }
                                     
-                                    let activityVC = UIActivityViewController(
-                                        activityItems: [message],
-                                        applicationActivities: nil
-                                    )
-                                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                                       let window = windowScene.windows.first,
-                                       let rootVC = window.rootViewController {
-                                        rootVC.present(activityVC, animated: true)
+                                    // Share Button
+                                    Button {
+                                        if let username = userService.currentUser?.username {
+                                            let sharingService = CardSharingService(cardService: cardService)
+                                            let profileLink = sharingService.generateProfileLink(for: username)
+                                            let message = "🌟 Let's connect on BumpIn!\n\n👋 Check out my digital business card: \(profileLink)\n\n📱 Download BumpIn on the App Store and join the future of networking!"
+                                            
+                                            let activityVC = UIActivityViewController(
+                                                activityItems: [message],
+                                                applicationActivities: nil
+                                            )
+                                            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                                               let window = windowScene.windows.first,
+                                               let rootVC = window.rootViewController {
+                                                rootVC.present(activityVC, animated: true)
+                                            }
+                                        }
+                                    } label: {
+                                        HStack {
+                                            Image(systemName: "square.and.arrow.up")
+                                            Text("Share Profile")
+                                        }
+                                        .font(.system(.body, weight: .medium))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(card.colorScheme.primary)
+                                        .cornerRadius(12)
                                     }
                                 }
-                            } label: {
-                                HStack {
-                                    Image(systemName: "square.and.arrow.up")
-                                    Text("Share Profile")
+                                .padding(.horizontal, CardDimensions.horizontalPadding)
+                                .padding(.top, 8)
+                                
+                                // Search for Friends Button
+                                Button {
+                                    selectedTab = 2  // Switch to network tab
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "magnifyingglass")
+                                        Text("Search for Friends")
+                                    }
+                                    .font(.system(.body, weight: .medium))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(card.colorScheme.primary)
+                                    .cornerRadius(12)
                                 }
-                                .font(.system(.body, weight: .medium))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
+                                .padding(.horizontal, CardDimensions.horizontalPadding)
+                                .padding(.top, 8)
+                            }
+                        } else {
+                            Button(action: { selectedTab = 1 }) {
+                                VStack(spacing: 12) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.system(size: 40))
+                                    Text("Create Your Card")
+                                        .font(.headline)
+                                }
+                                .foregroundColor(.blue)
                                 .padding()
-                                .background(card.colorScheme.primary)
-                                .cornerRadius(12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.blue.opacity(0.1))
+                                )
                             }
+                            .padding(.horizontal)
                         }
-                        .padding(.horizontal, CardDimensions.horizontalPadding)
-                        .padding(.top, 8)
-                        
-                        // Search for Friends Button
-                        Button {
-                            selectedTab = 2  // Switch to network tab
-                        } label: {
-                            HStack {
-                                Image(systemName: "magnifyingglass")
-                                Text("Search for Friends")
-                            }
-                            .font(.system(.body, weight: .medium))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(card.colorScheme.primary)
-                            .cornerRadius(12)
-                        }
-                        .padding(.horizontal, CardDimensions.horizontalPadding)
-                        .padding(.top, 8)
                     }
-                } else {
-                    Button(action: { selectedTab = 1 }) {
-                        VStack(spacing: 12) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 40))
-                            Text("Create Your Card")
-                                .font(.headline)
-                        }
-                        .foregroundColor(.blue)
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.blue.opacity(0.1))
-                        )
-                    }
-                    .padding(.horizontal)
+                    .padding(.top, 8)
                 }
             }
-            .padding(.top, 8)
         }
     }
     

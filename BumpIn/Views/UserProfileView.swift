@@ -8,39 +8,48 @@ struct UserProfileView: View {
     @State private var isConnected = false
     @State private var hasRequestPending = false
     @State private var hasIncomingRequest = false
-    @State private var isLoading = false
+    @State private var isLoading = true
     @State private var showDisconnectConfirmation = false
     @State private var showUnfollowAlert = false
     @State private var showQRCode = false
+    @StateObject private var storageService = StorageService()
+    @State private var preloadedImage: UIImage?
     
     private var isOwnProfile: Bool {
         Auth.auth().currentUser?.uid == user.id
     }
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                if let card = user.card {
-                    ProfileHeaderView(card: card, user: user)
-                    
-                    if !isOwnProfile {
-                        ConnectionButton(
-                            isConnected: $isConnected,
-                            hasRequestPending: $hasRequestPending,
-                            hasIncomingRequest: $hasIncomingRequest,
-                            isLoading: $isLoading,
-                            showUnfollowAlert: $showUnfollowAlert,
-                            user: user,
-                            connectionService: connectionService,
-                            checkStatus: checkStatus
-                        )
+        ZStack {
+            if isLoading {
+                ProgressView()
+                    .scaleEffect(1.5)
+            } else {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        if let card = user.card {
+                            ProfileHeaderView(card: card, user: user, preloadedImage: preloadedImage)
+                            
+                            if !isOwnProfile {
+                                ConnectionButton(
+                                    isConnected: $isConnected,
+                                    hasRequestPending: $hasRequestPending,
+                                    hasIncomingRequest: $hasIncomingRequest,
+                                    isLoading: $isLoading,
+                                    showUnfollowAlert: $showUnfollowAlert,
+                                    user: user,
+                                    connectionService: connectionService,
+                                    checkStatus: checkStatus
+                                )
+                            }
+                            
+                            QRCodeButton(showQRCode: $showQRCode, username: user.username)
+                            
+                            BusinessCardSection(card: card, preloadedImage: preloadedImage)
+                            
+                            ContactInfoSection(card: card)
+                        }
                     }
-                    
-                    QRCodeButton(showQRCode: $showQRCode, username: user.username)
-                    
-                    BusinessCardSection(card: card)
-                    
-                    ContactInfoSection(card: card)
                 }
             }
         }
@@ -69,7 +78,7 @@ struct UserProfileView: View {
             Text("You will need to send a new connection request to reconnect.")
         }
         .task {
-            await checkStatus()
+            await loadData()
         }
         .transition(.move(edge: .trailing))
         .animation(.spring(
@@ -99,6 +108,24 @@ struct UserProfileView: View {
                         }
                     }
             }
+        }
+    }
+    
+    private func loadData() async {
+        // Load profile image
+        if let card = user.card, let imageURL = card.profilePictureURL {
+            if let image = try? await storageService.loadProfileImage(from: imageURL) {
+                await MainActor.run {
+                    preloadedImage = image
+                }
+            }
+        }
+        
+        // Check connection status
+        await checkStatus()
+        
+        await MainActor.run {
+            isLoading = false
         }
     }
     
@@ -144,10 +171,9 @@ struct UserProfileView: View {
                 
                 print("""
                 ✅ Status check complete:
-                - isConnected: \(isConnected)
-                - hasRequestPending: \(hasRequestPending) (we sent request)
-                - hasIncomingRequest: \(hasIncomingRequest) (they sent request)
-                - Documents found: outgoing=\(outgoingSnapshot.documents.count), incoming=\(incomingSnapshot.documents.count)
+                - Connected: \(isConnected)
+                - Has Pending Request: \(hasRequestPending)
+                - Has Incoming Request: \(hasIncomingRequest)
                 """)
             }
         } catch {
@@ -159,24 +185,21 @@ struct UserProfileView: View {
 private struct ProfileHeaderView: View {
     let card: BusinessCard
     let user: User
+    let preloadedImage: UIImage?
     
     var body: some View {
         VStack(spacing: 0) {
             card.colorScheme.backgroundView(style: .gradient)
                 .frame(height: 120)
                 .overlay {
-                    if let imageURL = card.profilePictureURL {
-                        AsyncImage(url: URL(string: imageURL)) { image in
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        } placeholder: {
-                            defaultProfileImage
-                        }
-                        .frame(width: 86, height: 86)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.white, lineWidth: 2))
-                        .offset(y: 43)
+                    if let image = preloadedImage {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 86, height: 86)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                            .offset(y: 43)
                     } else {
                         defaultProfileImage
                             .offset(y: 43)
@@ -403,6 +426,7 @@ struct ShareSheet: UIViewControllerRepresentable {
 
 private struct BusinessCardSection: View {
     let card: BusinessCard
+    let preloadedImage: UIImage?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -413,7 +437,7 @@ private struct BusinessCardSection: View {
             }
             .padding(.horizontal, CardDimensions.horizontalPadding)
             
-            BusinessCardPreview(card: card, showFull: false, selectedImage: nil)
+            BusinessCardPreview(card: card, showFull: false, selectedImage: preloadedImage)
                 .frame(height: CardDimensions.previewHeight)
                 .padding(.horizontal, CardDimensions.horizontalPadding)
         }
