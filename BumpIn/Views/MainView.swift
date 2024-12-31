@@ -176,6 +176,24 @@ struct MainView: View {
                             BusinessCardPreview(card: card, showFull: false, selectedImage: nil)
                                 .frame(height: CardDimensions.previewHeight)
                                 .padding(.horizontal, CardDimensions.horizontalPadding)
+                            
+                            // QR Code Button
+                            Button {
+                                showQRCode = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "qrcode")
+                                    Text("View QR Code")
+                                }
+                                .font(.system(.body, weight: .medium))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(card.colorScheme.primary)
+                                .cornerRadius(12)
+                            }
+                            .padding(.horizontal, CardDimensions.horizontalPadding)
+                            .padding(.top, 8)
                         }
                     } else {
                         Button(action: { selectedTab = 1 }) {
@@ -193,80 +211,6 @@ struct MainView: View {
                             )
                         }
                         .padding(.horizontal)
-                    }
-                    
-                    if !cardService.contacts.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Recent Connections")
-                                .font(.system(size: 20, weight: .semibold))
-                                .padding(.horizontal, 12)
-                            
-                            LazyVGrid(columns: [
-                                GridItem(.flexible()),
-                                GridItem(.flexible())
-                            ], spacing: 12) {
-                                ForEach(cardService.contacts) { card in
-                                    ContactBox(card: card)
-                                }
-
-                            }
-                            .padding(.horizontal, 12)
-                        }
-                    }
-                    
-                    if let currentUser = userService.currentUser {
-                        VStack(spacing: 16) {
-                            // Profile section
-                            HStack {
-                                if let card = cardService.userCard,
-                                   let imageURL = card.profilePictureURL {
-                                    AsyncImage(url: URL(string: imageURL)) { image in
-                                        image
-                                            .resizable()
-                                            .scaledToFill()
-                                    } placeholder: {
-                                        defaultProfileImage
-                                    }
-                                    .frame(width: 60, height: 60)
-                                    .clipShape(Circle())
-                                } else {
-                                    defaultProfileImage
-                                }
-                                
-                                VStack(alignment: .leading) {
-                                    Text("@\(currentUser.username)")
-                                        .font(.headline)
-                                    if let card = cardService.userCard {
-                                        Text(card.title)
-                                            .font(.subheadline)
-                                            .foregroundColor(.gray)
-                                    }
-                                }
-                                
-                                Spacer()
-                                
-                                // QR Code Preview
-                                if let qrCodeURL = currentUser.qrCodeURL {
-                                    AsyncImage(url: URL(string: qrCodeURL)) { image in
-                                        image
-                                            .resizable()
-                                            .interpolation(.none)
-                                            .scaledToFit()
-                                            .frame(width: 50, height: 50)
-                                            .onTapGesture {
-                                                showQRCode = true
-                                            }
-                                    } placeholder: {
-                                        Image(systemName: "qrcode")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 50, height: 50)
-                                            .foregroundColor(.gray)
-                                    }
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
                     }
                 }
                 .padding(.top, 8)

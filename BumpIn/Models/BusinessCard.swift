@@ -12,6 +12,7 @@ struct BusinessCard: Codable, Identifiable {
     var website: String
     var aboutMe: String
     var profilePictureURL: String?
+    var qrCodeURL: String?
     var colorScheme: CardColorScheme
     var fontStyle: FontStyles
     var layoutStyle: LayoutStyles
@@ -32,6 +33,7 @@ struct BusinessCard: Codable, Identifiable {
         website: String = "",
         aboutMe: String = "",
         profilePictureURL: String? = nil,
+        qrCodeURL: String? = nil,
         colorScheme: CardColorScheme = CardColorScheme(),
         fontStyle: FontStyles = .modern,
         layoutStyle: LayoutStyles = .classic,
@@ -51,6 +53,7 @@ struct BusinessCard: Codable, Identifiable {
         self.website = website
         self.aboutMe = aboutMe
         self.profilePictureURL = profilePictureURL
+        self.qrCodeURL = qrCodeURL
         self.colorScheme = colorScheme
         self.fontStyle = fontStyle
         self.layoutStyle = layoutStyle

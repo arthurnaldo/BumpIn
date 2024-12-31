@@ -3,117 +3,35 @@ import SwiftUI
 struct CardDetailView: View {
     let card: BusinessCard
     let selectedImage: UIImage?
-    @State private var showFullScreen = false
-    @State private var isFlipped = false
-    @State private var scale: CGFloat = 1.0
-    @State private var lastScale: CGFloat = 1.0
-    @State private var offset: CGSize = .zero
-    @State private var lastOffset: CGSize = .zero
-    @Environment(\.colorScheme) var colorScheme
-    @Namespace private var animation
+    @State private var showQRCode = false
     
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                // Card preview with full screen button
-                ZStack(alignment: .topTrailing) {
-                    ZStack {
-                        // Front of card
-                        BusinessCardPreview(card: card, showFull: true, selectedImage: selectedImage)
-                            .frame(height: 220)
-                            .opacity(isFlipped ? 0 : 1)
-                            .scaleEffect(isFlipped ? 0.9 : 1)
-                            .rotation3DEffect(.degrees(isFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0))
-                            .scaleEffect(scale)
-                            .offset(offset)
-                            .gesture(!isFlipped ?
-                                SimultaneousGesture(
-                                    MagnificationGesture()
-                                        .onChanged { value in
-                                            let delta = value / lastScale
-                                            lastScale = value
-                                            scale = min(max(scale * delta, 1), 4)
-                                        }
-                                        .onEnded { _ in
-                                            lastScale = 1.0
-                                        },
-                                    DragGesture()
-                                        .onChanged { value in
-                                            if scale > 1 {
-                                                offset = CGSize(
-                                                    width: lastOffset.width + value.translation.width,
-                                                    height: lastOffset.height + value.translation.height
-                                                )
-                                            }
-                                        }
-                                        .onEnded { _ in
-                                            lastOffset = offset
-                                            if scale <= 1 {
-                                                withAnimation {
-                                                    offset = .zero
-                                                    lastOffset = .zero
-                                                }
-                                            }
-                                        }
-                                ) : nil
-                            )
-                            .gesture(!isFlipped ?
-                                TapGesture(count: 2)
-                                    .onEnded {
-                                        withAnimation {
-                                            if scale > 1 {
-                                                scale = 1
-                                                offset = .zero
-                                                lastOffset = .zero
-                                            } else {
-                                                scale = 2
-                                            }
-                                        }
-                                    } : nil
-                            )
-                        
-                        // Back of card (About Me)
-                        if !card.aboutMe.isEmpty {
-                            VStack(spacing: 8) {
-                                Text(card.aboutMe)
-                                    .font(card.fontStyle.bodyFont)
-                                    .foregroundColor(card.colorScheme.textColor.opacity(0.9))
-                                    .lineSpacing(4)
-                                    .multilineTextAlignment(.leading)
-                                    .padding(24)
-                            }
-                            .frame(height: 220)
-                            .frame(maxWidth: .infinity)
-                            .background(card.colorScheme.backgroundView(style: card.backgroundStyle))
-                            .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-                            .opacity(isFlipped ? 1 : 0)
-                            .scaleEffect(isFlipped ? 1 : 0.9)
-                            .rotation3DEffect(.degrees(isFlipped ? 0 : -180), axis: (x: 0, y: 1, z: 0))
+                BusinessCardPreview(
+                    card: card,
+                    showFull: true,
+                    selectedImage: selectedImage
+                )
+                .padding(.horizontal)
+                
+                // QR Code Button
+                if let qrCodeURL = card.qrCodeURL {
+                    Button {
+                        showQRCode = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "qrcode")
+                            Text("View QR Code")
                         }
+                        .font(.system(.body, weight: .medium))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(card.colorScheme.primary)
+                        .cornerRadius(12)
                     }
                     .padding(.horizontal)
-                    .onTapGesture {
-                        if !card.aboutMe.isEmpty && scale <= 1 {
-                            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                                isFlipped.toggle()
-                                // Reset zoom when flipping
-                                scale = 1
-                                offset = .zero
-                                lastOffset = .zero
-                            }
-                        }
-                    }
-                    
-                    Button(action: { showFullScreen = true }) {
-                        Image(systemName: "arrow.up.left.and.arrow.down.right")
-                            .foregroundColor(Color(red: 0.1, green: 0.3, blue: 0.5))
-                            .font(.system(size: 18))
-                            .padding(8)
-                            .background(colorScheme == .dark ? Color(uiColor: .systemGray6) : .white)
-                            .clipShape(Circle())
-                            .shadow(color: .black.opacity(0.1), radius: 4)
-                    }
-                    .padding()
                 }
                 
                 // Contact Information Boxes
@@ -170,107 +88,40 @@ struct CardDetailView: View {
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle(card.name)
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showFullScreen) {
-            ZoomableCardView(card: card, selectedImage: selectedImage)
-        }
-    }
-}
-
-struct ZoomableCardView: View {
-    let card: BusinessCard
-    let selectedImage: UIImage?
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) var colorScheme
-    @State private var scale: CGFloat = 1.0
-    @State private var lastScale: CGFloat = 1.0
-    @State private var offset: CGSize = .zero
-    @State private var lastOffset: CGSize = .zero
-    
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                Color.black.opacity(colorScheme == .dark ? 1 : 0.9)
-                    .ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    // Header
-                    HStack {
-                        Text(card.name)
-                            .font(.headline)
-                            .foregroundColor(.white)
-                        Spacer()
-                        Button(action: { dismiss() }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.white)
+        .sheet(isPresented: $showQRCode) {
+            NavigationStack {
+                VStack(spacing: 24) {
+                    if let qrCodeURL = card.qrCodeURL {
+                        AsyncImage(url: URL(string: qrCodeURL)) { image in
+                            image
+                                .resizable()
+                                .interpolation(.none)
+                                .scaledToFit()
+                                .frame(width: 250, height: 250)
+                        } placeholder: {
+                            Image(systemName: "qrcode")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 250, height: 250)
+                                .foregroundColor(.gray)
                         }
                     }
-                    .padding()
                     
-                    Spacer()
-                    
-                    // Zoomable Card
-                    BusinessCardPreview(card: card, showFull: true, selectedImage: selectedImage)
-                        .frame(height: min(geometry.size.width / 1.8, geometry.size.height * 0.6))
-                        .scaleEffect(scale)
-                        .offset(offset)
-                        .gesture(
-                            SimultaneousGesture(
-                                MagnificationGesture()
-                                    .onChanged { value in
-                                        let delta = value / lastScale
-                                        lastScale = value
-                                        scale = min(max(scale * delta, 1), 4)
-                                    }
-                                    .onEnded { _ in
-                                        lastScale = 1.0
-                                    },
-                                DragGesture()
-                                    .onChanged { value in
-                                        if scale > 1 {
-                                            offset = CGSize(
-                                                width: lastOffset.width + value.translation.width,
-                                                height: lastOffset.height + value.translation.height
-                                            )
-                                        }
-                                    }
-                                    .onEnded { _ in
-                                        lastOffset = offset
-                                        if scale <= 1 {
-                                            withAnimation {
-                                                offset = .zero
-                                                lastOffset = .zero
-                                            }
-                                        }
-                                    }
-                            )
-                        )
-                        .gesture(
-                            TapGesture(count: 2)
-                                .onEnded {
-                                    withAnimation {
-                                        if scale > 1 {
-                                            scale = 1
-                                            offset = .zero
-                                            lastOffset = .zero
-                                        } else {
-                                            scale = 2
-                                        }
-                                    }
-                                }
-                        )
-                    
-                    Spacer()
-                    
-                    // Zoom instructions at bottom
-                    Text("Pinch to zoom • Double tap to reset")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                        .padding(.vertical, 16)
-                        .background(
-                            Color.black.opacity(0.7)
-                                .ignoresSafeArea()
-                        )
+                    VStack(spacing: 4) {
+                        Text("Scan with BumpIn")
+                            .font(.headline)
+                        Text("Get the app on the App Store")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                }
+                .padding()
+                .navigationTitle("QR Code")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { showQRCode = false }
+                    }
                 }
             }
         }
