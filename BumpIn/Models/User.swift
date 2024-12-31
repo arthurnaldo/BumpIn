@@ -24,4 +24,19 @@ struct User: Identifiable, Codable, Hashable {
         case card
         case qrCodeURL
     }
+    
+    init(id: String, username: String, card: BusinessCard? = nil, qrCodeURL: String? = nil) {
+        self.id = id
+        self.username = username
+        self.card = card
+        self.qrCodeURL = qrCodeURL
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        username = try container.decode(String.self, forKey: .username)
+        card = try container.decodeIfPresent(BusinessCard.self, forKey: .card)
+        qrCodeURL = try container.decodeIfPresent(String.self, forKey: .qrCodeURL)
+    }
 } 

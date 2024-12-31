@@ -159,19 +159,22 @@ struct CardColorScheme: Codable, Equatable {
     
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Decode arrays of color components
         let primaryComponents = try container.decode([Double].self, forKey: .primary)
         let secondaryComponents = try container.decode([Double].self, forKey: .secondary)
         let textComponents = try container.decode([Double].self, forKey: .textColor)
         let accentComponents = try container.decode([Double].self, forKey: .accentColor)
-        let borderComponents = try container.decode([Double].self, forKey: .borderColor)
-        self.emoticon = try container.decode(String.self, forKey: .emoticon)
-        self.borderWidth = try container.decode(CGFloat.self, forKey: .borderWidth)
+        let borderComponents = try? container.decode([Double].self, forKey: .borderColor)
+        self.emoticon = try container.decodeIfPresent(String.self, forKey: .emoticon) ?? "💫"
+        self.borderWidth = try container.decodeIfPresent(CGFloat.self, forKey: .borderWidth) ?? 0
         
+        // Create colors from components
         self.primary = Color(red: primaryComponents[0], green: primaryComponents[1], blue: primaryComponents[2])
         self.secondary = Color(red: secondaryComponents[0], green: secondaryComponents[1], blue: secondaryComponents[2])
         self.textColor = Color(red: textComponents[0], green: textComponents[1], blue: textComponents[2])
         self.accentColor = Color(red: accentComponents[0], green: accentComponents[1], blue: accentComponents[2])
-        self.borderColor = Color(red: borderComponents[0], green: borderComponents[1], blue: borderComponents[2])
+        self.borderColor = borderComponents.map { Color(red: $0[0], green: $0[1], blue: $0[2]) } ?? .clear
     }
     
     func encode(to encoder: Encoder) throws {

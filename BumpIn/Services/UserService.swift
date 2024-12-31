@@ -107,19 +107,56 @@ class UserService: ObservableObject {
         // Generate and save QR code
         let qrCodeURL = try await qrCodeService.generateAndSaveProfileQRCode(for: username)
         
+        // Create an empty business card
+        let card = BusinessCard(
+            id: UUID().uuidString,
+            userId: userId,
+            name: "",
+            title: "",
+            company: "",
+            email: "",
+            phone: "",
+            linkedin: "",
+            website: "",
+            aboutMe: "",
+            profilePictureURL: nil,
+            qrCodeURL: nil,
+            colorScheme: CardColorScheme(),
+            fontStyle: .modern,
+            layoutStyle: .classic,
+            textScale: 1.0,
+            backgroundStyle: .gradient,
+            showSymbols: false,
+            isVertical: false
+        )
+        
+        // Save the empty card
+        let cardData = try JSONEncoder().encode(card)
+        guard let cardDict = try JSONSerialization.jsonObject(with: cardData) as? [String: Any] else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode card"])
+        }
+        
         let user = User(
             id: userId,
-            username: username.lowercased(), // Always store lowercase
-            card: nil,
+            username: username.lowercased(),
+            card: card,
             qrCodeURL: qrCodeURL
         )
         
-        let data = try JSONEncoder().encode(user)
-        guard let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        let userData = try JSONEncoder().encode(user)
+        guard let userDict = try JSONSerialization.jsonObject(with: userData) as? [String: Any] else {
             throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode user"])
         }
         
-        try await db.collection("users").document(userId).setData(dict)
+        // Use a batch write to save both user and card
+        let batch = db.batch()
+        let userRef = db.collection("users").document(userId)
+        let cardRef = db.collection("cards").document(userId)
+        
+        batch.setData(userDict, forDocument: userRef)
+        batch.setData(cardDict, forDocument: cardRef)
+        
+        try await batch.commit()
         currentUser = user
     }
     
@@ -133,18 +170,75 @@ class UserService: ObservableObject {
     }
     
     func fetchCurrentUser() async throws {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let userId = Auth.auth().currentUser?.uid,
+              let email = Auth.auth().currentUser?.email else {
             throw AuthError.notAuthenticated
         }
         
         let document = try await db.collection("users").document(userId).getDocument()
-        guard let data = document.data() else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "User data not found"])
+        if let data = document.data() {
+            let jsonData = try JSONSerialization.data(withJSONObject: data)
+            let user = try JSONDecoder().decode(User.self, from: jsonData)
+            await MainActor.run { self.currentUser = user }
+        } else {
+            // If no user data found, create an empty card
+            let card = BusinessCard(
+                id: UUID().uuidString,
+                userId: userId,
+                name: "",
+                title: "",
+                company: "",
+                email: email,
+                phone: "",
+                linkedin: "",
+                website: "",
+                aboutMe: "",
+                profilePictureURL: nil,
+                qrCodeURL: nil,
+                colorScheme: CardColorScheme(),
+                fontStyle: .modern,
+                layoutStyle: .classic,
+                textScale: 1.0,
+                backgroundStyle: .gradient,
+                showSymbols: false,
+                isVertical: false
+            )
+            
+            // Save the empty card
+            let cardData = try JSONEncoder().encode(card)
+            guard let cardDict = try JSONSerialization.jsonObject(with: cardData) as? [String: Any] else {
+                throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode card"])
+            }
+            
+            // Use email prefix as username
+            let username = email.split(separator: "@").first?.lowercased() ?? email.lowercased()
+            
+            // Generate QR code
+            let qrCodeURL = try await qrCodeService.generateAndSaveProfileQRCode(for: username)
+            
+            let user = User(
+                id: userId,
+                username: username,
+                card: card,
+                qrCodeURL: qrCodeURL
+            )
+            
+            let userData = try JSONEncoder().encode(user)
+            guard let userDict = try JSONSerialization.jsonObject(with: userData) as? [String: Any] else {
+                throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode user"])
+            }
+            
+            // Use a batch write to save both user and card
+            let batch = db.batch()
+            let userRef = db.collection("users").document(userId)
+            let cardRef = db.collection("cards").document(userId)
+            
+            batch.setData(userDict, forDocument: userRef)
+            batch.setData(cardDict, forDocument: cardRef)
+            
+            try await batch.commit()
+            await MainActor.run { self.currentUser = user }
         }
-        
-        let jsonData = try JSONSerialization.data(withJSONObject: data)
-        let user = try JSONDecoder().decode(User.self, from: jsonData)
-        await MainActor.run { self.currentUser = user }
     }
     
     func isUsernameAvailable(_ username: String) async throws -> Bool {

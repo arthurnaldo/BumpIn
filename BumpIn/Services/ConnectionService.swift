@@ -204,29 +204,52 @@ class ConnectionService: ObservableObject {
     }
     
     private func fetchUser(userId: String) async throws -> User? {
+        print("🔄 Fetching user with ID: \(userId)")
+        
         // Check cache first
         if let cachedUser = await CacheManager.shared.getCachedUser(id: userId) {
+            print("✅ Found user in cache")
             return cachedUser
         }
         
         let doc = try await db.collection("users").document(userId).getDocument()
-        guard let data = doc.data() else { return nil }
-        
-        let jsonData = try JSONSerialization.data(withJSONObject: data)
-        var user = try JSONDecoder().decode(User.self, from: jsonData)
-        
-        // Fetch user's card
-        if let cardDoc = try? await db.collection("cards")
-            .document(userId)
-            .getDocument(),
-            let cardData = cardDoc.data() {
-            let cardJsonData = try JSONSerialization.data(withJSONObject: cardData)
-            user.card = try JSONDecoder().decode(BusinessCard.self, from: cardJsonData)
+        guard let data = doc.data() else {
+            print("❌ No data found for user \(userId)")
+            return nil
         }
         
-        // Cache the user
-        await CacheManager.shared.cacheUser(user)
-        return user
+        print("📄 Raw user data: \(data)")
+        
+        let jsonData = try JSONSerialization.data(withJSONObject: data)
+        print("🔄 Converting to JSON data")
+        
+        do {
+            var user = try JSONDecoder().decode(User.self, from: jsonData)
+            print("✅ Successfully decoded user")
+            
+            // Fetch user's card
+            print("🔄 Fetching user's card")
+            if let cardDoc = try? await db.collection("cards")
+                .document(userId)
+                .getDocument(),
+                let cardData = cardDoc.data() {
+                print("📄 Raw card data: \(cardData)")
+                let cardJsonData = try JSONSerialization.data(withJSONObject: cardData)
+                user.card = try JSONDecoder().decode(BusinessCard.self, from: cardJsonData)
+                print("✅ Successfully decoded card")
+            } else {
+                print("⚠️ No card found for user")
+            }
+            
+            // Cache the user
+            await CacheManager.shared.cacheUser(user)
+            print("✅ Cached user data")
+            return user
+        } catch {
+            print("❌ Failed to decode user: \(error.localizedDescription)")
+            print("❌ JSON data: \(String(data: jsonData, encoding: .utf8) ?? "invalid UTF8")")
+            throw error
+        }
     }
     
     func removeConnection(with userId: String) async throws {
