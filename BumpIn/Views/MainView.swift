@@ -95,6 +95,21 @@ struct MainView: View {
                 Label("Home", systemImage: "house.fill")
             }
             .tag(0)
+            .onChange(of: selectedTab) { newTab in
+                if newTab == 0 {
+                    // Update preloaded image if we have a card with a profile picture
+                    if let card = cardService.userCard,
+                       let imageURL = card.profilePictureURL {
+                        Task {
+                            if let image = try? await storageService.loadProfileImage(from: imageURL) {
+                                await MainActor.run {
+                                    preloadedImage = image
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             
             NavigationView {
                 if let existingCard = cardService.userCard {
