@@ -550,6 +550,9 @@ struct CreateCardView: View {
             
             try await cardService.saveCard(businessCard, userId: userId)
             
+            // Fetch the updated card to ensure all views have the latest data
+            _ = try await cardService.fetchUserCard(userId: userId)
+            
             // After successful save, switch to home tab
             selectedTab = 0
             
