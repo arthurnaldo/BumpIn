@@ -33,13 +33,68 @@ struct LoginView: View {
                 VStack(spacing: 30) {
                     // Logo and Title
                     VStack(spacing: 20) {
-                        Image(systemName: "person.2.circle.fill")
-                            .font(.system(size: 80))
-                            .foregroundColor(.white)
+                        ZStack {
+                            // Bottom card
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color(red: 0.2, green: 0.4, blue: 0.8),
+                                            Color(red: 0.3, green: 0.5, blue: 0.9)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 90, height: 60)
+                                .rotationEffect(.degrees(10))
+                                .offset(x: 20, y: 15)
+                                .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+                            
+                            // Middle card
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.white.opacity(0.9))
+                                .frame(width: 90, height: 60)
+                                .rotationEffect(.degrees(0))
+                                .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                            
+                            // Top card
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            .white,
+                                            Color(red: 0.95, green: 0.95, blue: 1.0)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 90, height: 60)
+                                .rotationEffect(.degrees(-10))
+                                .offset(x: -20, y: -15)
+                                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                                .overlay(
+                                    Image(systemName: "person.2.fill")
+                                        .font(.system(size: 24, weight: .bold))
+                                        .foregroundColor(Color(red: 0.2, green: 0.4, blue: 0.8))
+                                        .rotationEffect(.degrees(-10))
+                                        .offset(x: -20, y: -15)
+                                )
+                        }
+                        .frame(width: 160, height: 160)
                         
-                        Text("BumpIn")
-                            .font(.system(size: 42, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
+                        // BumpIn Text Treatment
+                        HStack(spacing: 0) {
+                            Text("Bump")
+                                .font(.system(size: 42, weight: .heavy, design: .rounded))
+                                .foregroundColor(.white)
+                            Text("In")
+                                .font(.system(size: 42, weight: .heavy, design: .rounded))
+                                .foregroundColor(Color(red: 0.3, green: 0.5, blue: 0.9))
+                                .padding(.leading, -3)
+                        }
+                        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 2)
                         
                         Text(isSignUp ? "Create your account" : "Welcome back!")
                             .font(.system(.title3, design: .rounded))
@@ -264,9 +319,22 @@ struct LoginView: View {
                                 isShowingPasswordRequirements = false
                             }
                         } label: {
-                            Text(isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up")
-                                .font(.system(.body, design: .rounded))
-                                .foregroundColor(.white)
+                            HStack(spacing: 8) {
+                                Text(isSignUp ? "Already have an account?" : "Don't have an account?")
+                                    .foregroundColor(.white.opacity(0.8))
+                                    .font(.system(.body, design: .rounded))
+                                
+                                Text(isSignUp ? "Sign In" : "Sign Up")
+                                    .font(.system(.body, design: .rounded))
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(Color.white.opacity(0.2))
+                                    )
+                            }
                         }
                         .disabled(isLoading)
                     }

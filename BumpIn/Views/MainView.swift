@@ -71,8 +71,15 @@ struct MainView: View {
                 homeView
                     .toolbar {
                         ToolbarItem(placement: .navigationBarLeading) {
-                            Text("BumpIn")
-                                .font(.system(size: 24, weight: .bold))
+                            HStack(spacing: 0) {
+                                Text("Bump")
+                                    .font(.system(size: 32, weight: .heavy, design: .rounded))
+                                    .foregroundColor(.white)
+                                Text("In")
+                                    .font(.system(size: 32, weight: .heavy, design: .rounded))
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .padding(.leading, -3)
+                            }
                         }
                         ToolbarItem(placement: .navigationBarTrailing) {
                             HStack {
@@ -181,105 +188,223 @@ struct MainView: View {
                     .scaleEffect(1.5)
             } else {
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 8) {
+                    VStack(spacing: 24) {
+                        // Add top padding
+                        Spacer()
+                            .frame(height: 16)
+                            
                         if let card = cardService.userCard {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Your Card")
-                                    .font(.system(size: 20, weight: .semibold))
-                                    .padding(.horizontal, CardDimensions.horizontalPadding)
+                            // Welcome Section
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Welcome back,")
+                                    .font(.system(size: 18, weight: .medium, design: .rounded))
+                                    .foregroundColor(.gray)
+                                Text(card.name.isEmpty ? "@\(userService.currentUser?.username ?? "")" : card.name)
+                                    .font(.system(size: 34, weight: .black, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .overlay(
+                                        ZStack {
+                                            // Main gradient line
+                                            Capsule()
+                                                .fill(
+                                                    LinearGradient(
+                                                        colors: [
+                                                            Color(red: 0.3, green: 0.5, blue: 0.9),
+                                                            Color(red: 0.4, green: 0.6, blue: 1.0)
+                                                        ],
+                                                        startPoint: .leading,
+                                                        endPoint: .trailing
+                                                    )
+                                                )
+                                                .frame(height: 4)
+                                                .offset(y: 4)
+                                            
+                                            // Glow effect
+                                            Capsule()
+                                                .fill(
+                                                    LinearGradient(
+                                                        colors: [
+                                                            Color(red: 0.3, green: 0.5, blue: 0.9).opacity(0.5),
+                                                            Color(red: 0.4, green: 0.6, blue: 1.0).opacity(0.5)
+                                                        ],
+                                                        startPoint: .leading,
+                                                        endPoint: .trailing
+                                                    )
+                                                )
+                                                .frame(height: 4)
+                                                .blur(radius: 4)
+                                                .offset(y: 4)
+                                        },
+                                        alignment: .bottom
+                                    )
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 24)
+                            
+                            // Card Preview Section
+                            VStack(alignment: .leading, spacing: 16) {
+                                HStack {
+                                    Text("Your Digital Card")
+                                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                                        .foregroundColor(.white)
+                                    
+                                    Spacer()
+                                    
+                                    Button {
+                                        selectedTab = 1
+                                    } label: {
+                                        Text("Edit")
+                                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                            .foregroundColor(.white.opacity(0.7))
+                                    }
+                                }
+                                .padding(.horizontal, 24)
                                 
                                 BusinessCardPreview(card: card, showFull: false, selectedImage: preloadedImage)
                                     .frame(height: CardDimensions.previewHeight)
-                                    .padding(.horizontal, CardDimensions.horizontalPadding)
-                                
-                                HStack(spacing: 16) {
-                                    // QR Code Button
-                                    Button {
-                                        showQRCode = true
-                                    } label: {
-                                        HStack {
-                                            Image(systemName: "qrcode")
-                                            Text("View QR Code")
-                                        }
-                                        .font(.system(.body, weight: .medium))
-                                        .foregroundColor(.white)
-                                        .frame(maxWidth: .infinity)
-                                        .padding()
-                                        .background(card.colorScheme.primary)
-                                        .cornerRadius(12)
-                                    }
-                                    
-                                    // Share Button
-                                    Button {
-                                        if let username = userService.currentUser?.username {
-                                            let sharingService = CardSharingService(cardService: cardService)
-                                            let profileLink = sharingService.generateProfileLink(for: username)
-                                            let message = "🌟 Let's connect on BumpIn!\n\n👋 Check out my digital business card: \(profileLink)\n\n📱 Download BumpIn on the App Store and join the future of networking!"
-                                            
-                                            let activityVC = UIActivityViewController(
-                                                activityItems: [message],
-                                                applicationActivities: nil
-                                            )
-                                            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                                               let window = windowScene.windows.first,
-                                               let rootVC = window.rootViewController {
-                                                rootVC.present(activityVC, animated: true)
-                                            }
-                                        }
-                                    } label: {
-                                        HStack {
-                                            Image(systemName: "square.and.arrow.up")
-                                            Text("Share Profile")
-                                        }
-                                        .font(.system(.body, weight: .medium))
-                                        .foregroundColor(.white)
-                                        .frame(maxWidth: .infinity)
-                                        .padding()
-                                        .background(card.colorScheme.primary)
-                                        .cornerRadius(12)
-                                    }
-                                }
-                                .padding(.horizontal, CardDimensions.horizontalPadding)
-                                .padding(.top, 8)
-                                
-                                // Search for Friends Button
-                                Button {
-                                    selectedTab = 2  // Switch to network tab
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "magnifyingglass")
-                                        Text("Search for Friends")
-                                    }
-                                    .font(.system(.body, weight: .medium))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(card.colorScheme.primary)
-                                    .cornerRadius(12)
-                                }
-                                .padding(.horizontal, CardDimensions.horizontalPadding)
-                                .padding(.top, 8)
+                                    .padding(.horizontal, 16)
                             }
+                            
+                            // Action Buttons Grid
+                            LazyVGrid(columns: [
+                                GridItem(.flexible(), spacing: 1),
+                                GridItem(.flexible(), spacing: 1)
+                            ], spacing: 1) {
+                                // QR Code Button
+                                ActionButton(
+                                    icon: "qrcode",
+                                    title: "Your QR Code",
+                                    subtitle: "Share instantly",
+                                    color: card.colorScheme.primary
+                                ) {
+                                    showQRCode = true
+                                }
+                                
+                                // Share Button
+                                ActionButton(
+                                    icon: "square.and.arrow.up",
+                                    title: "Share Profile",
+                                    subtitle: "Via link or message",
+                                    color: card.colorScheme.secondary
+                                ) {
+                                    if let username = userService.currentUser?.username {
+                                        let sharingService = CardSharingService(cardService: cardService)
+                                        let profileLink = sharingService.generateProfileLink(for: username)
+                                        let message = "🌟 Let's connect on BumpIn!\n\n👋 Check out my digital business card: \(profileLink)"
+                                        
+                                        let activityVC = UIActivityViewController(
+                                            activityItems: [message],
+                                            applicationActivities: nil
+                                        )
+                                        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                                           let window = windowScene.windows.first,
+                                           let rootVC = window.rootViewController {
+                                            rootVC.present(activityVC, animated: true)
+                                        }
+                                    }
+                                }
+                                
+                                // Physical Card Button
+                                ActionButton(
+                                    icon: "creditcard.fill",
+                                    title: "Get Physical Card",
+                                    subtitle: "Premium NFC Cards",
+                                    color: Color(red: 0.3, green: 0.5, blue: 0.9)
+                                ) {
+                                    if let url = URL(string: "https://github.com") {
+                                        UIApplication.shared.open(url)
+                                    }
+                                }
+                                
+                                // Search Button
+                                ActionButton(
+                                    icon: "magnifyingglass",
+                                    title: "Find People",
+                                    subtitle: "Grow your network",
+                                    color: Color(red: 0.4, green: 0.6, blue: 0.8)
+                                ) {
+                                    selectedTab = 2
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.top, 16)
+                            
                         } else {
-                            Button(action: { selectedTab = 1 }) {
-                                VStack(spacing: 12) {
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.system(size: 40))
-                                    Text("Create Your Card")
-                                        .font(.headline)
+                            // Create Card Button
+                            VStack(spacing: 16) {
+                                Image(systemName: "person.crop.rectangle.badge.plus")
+                                    .font(.system(size: 50))
+                                    .foregroundColor(.white)
+                                
+                                Text("Create Your Digital Card")
+                                    .font(.system(size: 28, weight: .black, design: .rounded))
+                                    .foregroundColor(.white)
+                                
+                                Text("Start networking with a professional digital business card")
+                                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.center)
+                                
+                                Button(action: { selectedTab = 1 }) {
+                                    Text("Get Started")
+                                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(Color(red: 0.2, green: 0.4, blue: 0.8))
+                                        .cornerRadius(12)
                                 }
-                                .foregroundColor(.blue)
-                                .padding()
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.blue.opacity(0.1))
-                                )
+                                .padding(.top, 8)
                             }
-                            .padding(.horizontal)
+                            .padding(24)
+                            .background(Color(white: 0.15))
+                            .cornerRadius(20)
+                            .padding(.horizontal, 16)
                         }
                     }
-                    .padding(.top, 8)
                 }
+            }
+        }
+    }
+    
+    struct ActionButton: View {
+        let icon: String
+        let title: String
+        let subtitle: String
+        let color: Color
+        let action: () -> Void
+        
+        var body: some View {
+            Button(action: action) {
+                HStack(alignment: .top, spacing: 16) {
+                    // Icon container with fixed size
+                    Image(systemName: icon)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(color)
+                        .frame(width: 24, height: 24)
+                        .padding(.top, 2)
+                    
+                    // Text container
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(title)
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.leading)
+                        
+                        Text(subtitle)
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.leading)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    Spacer(minLength: 24)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 120)
+                .padding(.horizontal, 20)
+                .background(Color(white: 0.15))
+                .cornerRadius(0)
             }
         }
     }
@@ -309,17 +434,30 @@ struct MainView: View {
             Button {
                 showNotifications = true
             } label: {
-                Image(systemName: "bell.fill")
-                    .overlay(
-                        Group {
-                            if !connectionService.pendingRequests.isEmpty {
-                                Circle()
-                                    .fill(.red)
-                                    .frame(width: 8, height: 8)
-                                    .offset(x: 6, y: -6)
-                            }
-                        }
-                    )
+                ZStack {
+                    // Background circle
+                    Circle()
+                        .fill(Color.white.opacity(0.15))
+                        .frame(width: 40, height: 40)
+                    
+                    // Bell icon
+                    Image(systemName: "bell.fill")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.white)
+                    
+                    // Notification badge
+                    if !connectionService.pendingRequests.isEmpty {
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 12, height: 12)
+                            .overlay(
+                                Text("\(connectionService.pendingRequests.count)")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundColor(.white)
+                            )
+                            .offset(x: 12, y: -12)
+                    }
+                }
             }
             .sheet(isPresented: $showNotifications) {
                 NotificationView()
