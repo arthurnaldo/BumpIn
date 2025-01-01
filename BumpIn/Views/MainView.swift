@@ -53,9 +53,10 @@ struct MainView: View {
             cardService.startContactsListener(userId: userId)
         } catch {
             if (error as NSError).domain == "FIRFirestoreErrorDomain" {
-                print("First-time user or document doesn't exist yet")
+                errorMessage = "Network error. Please reload and rerun BumpIn."
+                showError = true
             } else {
-                errorMessage = error.localizedDescription
+                errorMessage = "Network error. Please reload and rerun BumpIn."
                 showError = true
             }
         }
