@@ -1,5 +1,42 @@
 import SwiftUI
 
+struct ShimmerModifier: ViewModifier {
+    @State private var phase: CGFloat = 0
+    
+    func body(content: Content) -> some View {
+        content
+            .overlay(
+                GeometryReader { geometry in
+                    LinearGradient(
+                        gradient: Gradient(stops: [
+                            .init(color: .clear, location: 0),
+                            .init(color: .white.opacity(0.3), location: 0.3),
+                            .init(color: .white.opacity(0.5), location: 0.5),
+                            .init(color: .white.opacity(0.3), location: 0.7),
+                            .init(color: .clear, location: 1)
+                        ]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: geometry.size.width * 2)
+                    .offset(x: -geometry.size.width + (geometry.size.width * 2) * phase)
+                }
+            )
+            .mask(content)
+            .onAppear {
+                withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
+                    phase = 1
+                }
+            }
+    }
+}
+
+extension View {
+    func shimmer() -> some View {
+        modifier(ShimmerModifier())
+    }
+}
+
 struct BusinessCardPreview: View {
     let card: BusinessCard
     let showFull: Bool
@@ -16,16 +53,61 @@ struct BusinessCardPreview: View {
     
     var body: some View {
         Group {
-            if isLoading {
-                VStack {
-                    Spacer()
-                    ProgressView()
-                        .scaleEffect(1.5)
-                    Spacer()
+            if card.name.isEmpty {
+                ContentUnavailableView(
+                    "Build Your Card",
+                    systemImage: "person.crop.rectangle.badge.plus",
+                    description: Text("Head to My Card tab to create your business card")
+                )
+            } else if isLoading {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Profile image placeholder
+                    Circle()
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(width: 60, height: 60)
+                        .shimmer()
+                    
+                    // Name placeholder
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(height: 24)
+                        .frame(width: 180)
+                        .shimmer()
+                    
+                    // Title and company placeholders
+                    VStack(alignment: .leading, spacing: 8) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 16)
+                            .frame(width: 140)
+                            .shimmer()
+                        
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 16)
+                            .frame(width: 120)
+                            .shimmer()
+                    }
+                    
+                    Divider()
+                    
+                    // Contact info placeholders
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(0..<3, id: \.self) { _ in
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(height: 16)
+                                .frame(width: 160)
+                                .shimmer()
+                        }
+                    }
                 }
+                .padding(16)
                 .frame(maxWidth: .infinity)
                 .frame(height: showFull ? nil : 200)
-                .background(card.colorScheme.backgroundView(style: card.backgroundStyle))
+                .background(Color(uiColor: .systemBackground))
+                .cornerRadius(12)
+                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
             } else {
                 VStack(spacing: 16) {
                     Group {
@@ -57,15 +139,6 @@ struct BusinessCardPreview: View {
                 .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.colorScheme)
                 .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.fontStyle)
                 .animation(.spring(response: 0.4, dampingFraction: 0.8), value: card.backgroundStyle)
-            }
-        }
-        .overlay {
-            if card.name.isEmpty {
-                ContentUnavailableView(
-                    "Card Unavailable",
-                    systemImage: "rectangle.on.rectangle.slash",
-                    description: Text("This user's business card cannot be displayed")
-                )
             }
         }
         .task {

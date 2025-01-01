@@ -104,7 +104,7 @@ struct MainView: View {
                 }
             }
             .tabItem {
-                Label("My Card", systemImage: "person.crop.rectangle.fill")
+                Label("My Card", systemImage: "rectangle.stack.fill")
             }
             .tag(1)
             
@@ -121,11 +121,11 @@ struct MainView: View {
                 .environmentObject(authService)
                 .environmentObject(cardService)
                 .tabItem {
-                    Label("Profile", systemImage: "person.circle.fill")
+                    Label("Profile", systemImage: "person.fill")
                 }
                 .tag(3)
         }
-        .tint(Color(red: 0.1, green: 0.3, blue: 0.5))
+        .tint(.white)
         .preferredColorScheme(isDarkMode ? .dark : .light)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isDarkMode)
         .alert("Error", isPresented: $showError) {
@@ -184,8 +184,60 @@ struct MainView: View {
     private var homeView: some View {
         ZStack {
             if isLoading {
-                ProgressView()
-                    .scaleEffect(1.5)
+                VStack(spacing: 24) {
+                    // Logo animation
+                    HStack(spacing: 0) {
+                        Text("Bump")
+                            .font(.system(size: 32, weight: .heavy, design: .rounded))
+                            .foregroundColor(.white)
+                        Text("In")
+                            .font(.system(size: 32, weight: .heavy, design: .rounded))
+                            .foregroundColor(.white.opacity(0.7))
+                            .padding(.leading, -3)
+                    }
+                    .scaleEffect(1.2)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 30)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 0.3, green: 0.5, blue: 0.9),
+                                        Color(red: 0.4, green: 0.6, blue: 1.0)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                lineWidth: 4
+                            )
+                            .frame(width: 200, height: 80)
+                            .blur(radius: 20)
+                    )
+                    .modifier(PulseAnimation())
+                    
+                    // Animated cards
+                    ZStack {
+                        ForEach(0..<3) { index in
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color(red: 0.1, green: 0.3, blue: 0.5),
+                                            Color(red: 0.2, green: 0.4, blue: 0.6)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 300, height: 180)
+                                .rotationEffect(.degrees(Double(index * 5) - 5))
+                                .offset(y: Double(index * 10) - 10)
+                                .opacity(0.8)
+                                .shimmer()
+                                .modifier(FloatAnimation(delay: Double(index) * 0.2))
+                        }
+                    }
+                }
+                .offset(y: -40)
             } else {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 24) {
@@ -290,7 +342,7 @@ struct MainView: View {
                                     if let username = userService.currentUser?.username {
                                         let sharingService = CardSharingService(cardService: cardService)
                                         let profileLink = sharingService.generateProfileLink(for: username)
-                                        let message = "🌟 Let's connect on BumpIn!\n\n👋 Check out my digital business card: \(profileLink)"
+                                        let message = "🌟 Let's connect on BumpIn!\n\n👋 Check out my digital business card: \(profileLink)\n\n📱 Download BumpIn on the App Store and join the future of networking!"
                                         
                                         let activityVC = UIActivityViewController(
                                             activityItems: [message],
@@ -479,6 +531,44 @@ struct MainView: View {
                     .font(.system(size: 30))
                     .foregroundColor(.gray)
             )
+    }
+    
+    // Pulse animation for the logo
+    struct PulseAnimation: ViewModifier {
+        @State private var isPulsing = false
+        
+        func body(content: Content) -> some View {
+            content
+                .scaleEffect(isPulsing ? 1.05 : 1)
+                .onAppear {
+                    withAnimation(
+                        .easeInOut(duration: 1.5)
+                        .repeatForever(autoreverses: true)
+                    ) {
+                        isPulsing = true
+                    }
+                }
+        }
+    }
+    
+    // Floating animation for cards
+    struct FloatAnimation: ViewModifier {
+        @State private var isFloating = false
+        let delay: Double
+        
+        func body(content: Content) -> some View {
+            content
+                .offset(y: isFloating ? -5 : 5)
+                .onAppear {
+                    withAnimation(
+                        .easeInOut(duration: 2)
+                        .repeatForever(autoreverses: true)
+                        .delay(delay)
+                    ) {
+                        isFloating = true
+                    }
+                }
+        }
     }
 }
 

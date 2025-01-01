@@ -115,6 +115,7 @@ struct LoginView: View {
                                 .textContentType(.emailAddress)
                                 .keyboardType(.emailAddress)
                                 .autocapitalization(.none)
+                                .disableAutocorrection(true)
                                 .onChange(of: email) { _, _ in
                                     showError = false
                                 }
@@ -182,6 +183,7 @@ struct LoginView: View {
                                 TextField("", text: $username)
                                     .textFieldStyle(RoundedBorderTextFieldStyle())
                                     .autocapitalization(.none)
+                                    .disableAutocorrection(true)
                                     .onChange(of: username) { _, newValue in
                                         let sanitized = newValue.lowercased().trimmingCharacters(in: .whitespaces)
                                         if sanitized != newValue {
