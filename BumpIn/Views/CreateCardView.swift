@@ -875,22 +875,21 @@ struct BackgroundStyleButton: View {
         Button(action: action) {
             VStack(spacing: 8) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10)
+                    Rectangle()
                         .fill(Color.white)
                         .frame(width: 50, height: 50)
                     
                     colorScheme.backgroundView(style: style)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .clipShape(Rectangle())
                         .frame(width: 50, height: 50)
                 }
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(isSelected ? Color(red: 0.1, green: 0.3, blue: 0.5) : Color.clear, lineWidth: 3)
+                    Rectangle()
+                        .stroke(isSelected ? Color(red: 0.3, green: 0.5, blue: 0.9) : Color.clear, lineWidth: 2)
                 )
-                .shadow(color: .black.opacity(0.1), radius: 3)
                 
                 Text(style.rawValue)
-                    .font(.caption)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundColor(.gray)
                     .multilineTextAlignment(.center)
                     .frame(width: 60, height: 30)

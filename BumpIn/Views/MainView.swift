@@ -404,6 +404,10 @@ struct MainView: View {
                 .frame(height: 120)
                 .padding(.horizontal, 20)
                 .background(Color(white: 0.15))
+                .overlay(
+                    Rectangle()
+                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                )
                 .cornerRadius(0)
             }
         }
