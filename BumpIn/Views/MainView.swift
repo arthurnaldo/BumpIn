@@ -194,44 +194,210 @@ struct MainView: View {
                 }
             }
         }
-        .task {
-            if let card = cardService.userCard, let imageURL = card.profilePictureURL {
-                if let image = try? await storageService.loadProfileImage(from: imageURL) {
-                    await MainActor.run {
-                        preloadedImage = image
-                    }
-                }
-            }
-        }
-        .onChange(of: cardService.userCard?.profilePictureURL) { _, newURL in
-            if let imageURL = newURL {
-                Task {
-                    if let image = try? await storageService.loadProfileImage(from: imageURL) {
-                        await MainActor.run {
-                            preloadedImage = image
-                        }
-                    }
-                }
-            }
-        }
     }
     
     private var homeView: some View {
-        NavigationView {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 8) {
-                    if let card = cardService.userCard {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Your Card")
-                                .font(.system(size: 20, weight: .semibold))
-                                .padding(.horizontal, CardDimensions.horizontalPadding)
-                            
-                            BusinessCardPreview(card: card, showFull: false, selectedImage: preloadedImage)
-                                .frame(height: CardDimensions.previewHeight)
-                                .padding(.horizontal, CardDimensions.horizontalPadding)
+        ZStack {
+            if isLoading {
+                VStack(spacing: 24) {
+                    // Logo animation
+                    HStack(spacing: 0) {
+                        Text("Bump")
+                            .font(.system(size: 32, weight: .heavy, design: .rounded))
+                            .foregroundColor(.white)
+                        Text("In")
+                            .font(.system(size: 32, weight: .heavy, design: .rounded))
+                            .foregroundColor(.white.opacity(0.7))
+                            .padding(.leading, -3)
+                    }
+                    .scaleEffect(1.2)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 30)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 0.3, green: 0.5, blue: 0.9),
+                                        Color(red: 0.4, green: 0.6, blue: 1.0)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                lineWidth: 4
+                            )
+                            .frame(width: 200, height: 80)
+                            .blur(radius: 20)
+                    )
+                    .modifier(PulseAnimation())
+                    
+                    // Animated cards
+                    ZStack {
+                        ForEach(0..<3) { index in
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color(red: 0.1, green: 0.3, blue: 0.5),
+                                            Color(red: 0.2, green: 0.4, blue: 0.6)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 300, height: 180)
+                                .rotationEffect(.degrees(Double(index * 5) - 5))
+                                .offset(y: Double(index * 10) - 10)
+                                .opacity(0.8)
+                                .shimmer()
+                                .modifier(FloatAnimation(delay: Double(index) * 0.2))
                         }
-                    } else {
-                        Button(action: { selectedTab = 1 }) {
+                    }
+                }
+                .offset(y: -40)
+            } else {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 24) {
+                        // Add top padding
+                        Spacer()
+                            .frame(height: 16)
+                            
+                        if let card = cardService.userCard {
+                            // Welcome Section
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Welcome back,")
+                                    .font(.system(size: 18, weight: .medium, design: .rounded))
+                                    .foregroundColor(.gray)
+                                Text(card.name.isEmpty ? "@\(userService.currentUser?.username ?? "")" : card.name)
+                                    .font(.system(size: 34, weight: .black, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .overlay(
+                                        ZStack {
+                                            // Main gradient line
+                                            Capsule()
+                                                .fill(
+                                                    LinearGradient(
+                                                        colors: [
+                                                            Color(red: 0.3, green: 0.5, blue: 0.9),
+                                                            Color(red: 0.4, green: 0.6, blue: 1.0)
+                                                        ],
+                                                        startPoint: .leading,
+                                                        endPoint: .trailing
+                                                    )
+                                                )
+                                                .frame(height: 4)
+                                                .offset(y: 4)
+                                            
+                                            // Glow effect
+                                            Capsule()
+                                                .fill(
+                                                    LinearGradient(
+                                                        colors: [
+                                                            Color(red: 0.3, green: 0.5, blue: 0.9).opacity(0.5),
+                                                            Color(red: 0.4, green: 0.6, blue: 1.0).opacity(0.5)
+                                                        ],
+                                                        startPoint: .leading,
+                                                        endPoint: .trailing
+                                                    )
+                                                )
+                                                .frame(height: 4)
+                                                .blur(radius: 4)
+                                                .offset(y: 4)
+                                        },
+                                        alignment: .bottom
+                                    )
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 24)
+                            
+                            // Card Preview Section
+                            VStack(alignment: .leading, spacing: 16) {
+                                HStack {
+                                    Text("Your Digital Card")
+                                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                                        .foregroundColor(.white)
+                                    
+                                    Spacer()
+                                    
+                                    Button {
+                                        selectedTab = 1
+                                    } label: {
+                                        Text("Edit")
+                                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                            .foregroundColor(.white.opacity(0.7))
+                                    }
+                                }
+                                .padding(.horizontal, 24)
+                                
+                                BusinessCardPreview(card: card, showFull: false, selectedImage: preloadedImage)
+                                    .frame(height: CardDimensions.previewHeight)
+                                    .padding(.horizontal, 16)
+                            }
+                            
+                            // Action Buttons Grid
+                            LazyVGrid(columns: [
+                                GridItem(.flexible(), spacing: 1),
+                                GridItem(.flexible(), spacing: 1)
+                            ], spacing: 1) {
+                                // QR Code Button
+                                ActionButton(
+                                    icon: "qrcode",
+                                    title: "Your QR Code",
+                                    subtitle: "Share instantly",
+                                    color: card.colorScheme.primary
+                                ) {
+                                    showQRCode = true
+                                }
+                                
+                                // Share Button
+                                ActionButton(
+                                    icon: "square.and.arrow.up",
+                                    title: "Share Profile",
+                                    subtitle: "Via link or message",
+                                    color: card.colorScheme.secondary
+                                ) {
+                                    if let username = userService.currentUser?.username {
+                                        let sharingService = CardSharingService(cardService: cardService)
+                                        let profileLink = sharingService.generateProfileLink(for: username)
+                                        let message = "🌟 Let's connect on BumpIn!\n\n👋 Check out my digital business card: \(profileLink)\n\n📱 Download BumpIn on the App Store and join the future of networking!"
+                                        
+                                        let activityVC = UIActivityViewController(
+                                            activityItems: [message],
+                                            applicationActivities: nil
+                                        )
+                                        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                                           let window = windowScene.windows.first,
+                                           let rootVC = window.rootViewController {
+                                            rootVC.present(activityVC, animated: true)
+                                        }
+                                    }
+                                }
+                                
+                                // Physical Card Button
+                                ActionButton(
+                                    icon: "creditcard.fill",
+                                    title: "Get Physical Card",
+                                    subtitle: "Premium NFC Cards",
+                                    color: Color(red: 0.3, green: 0.5, blue: 0.9)
+                                ) {
+                                    if let url = URL(string: "https://github.com") {
+                                        UIApplication.shared.open(url)
+                                    }
+                                }
+                                
+                                // Search Button
+                                ActionButton(
+                                    icon: "magnifyingglass",
+                                    title: "Find People",
+                                    subtitle: "Grow your network",
+                                    color: Color(red: 0.4, green: 0.6, blue: 0.8)
+                                ) {
+                                    selectedTab = 2
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.top, 16)
+                            
+                        } else {
+                            // Create Card Button
                             VStack(spacing: 16) {
                                 Image(systemName: "person.crop.rectangle.badge.plus")
                                     .font(.system(size: 50))
@@ -461,4 +627,4 @@ private struct ContactBox: View {
             }
         }
     }
-}
+} 
