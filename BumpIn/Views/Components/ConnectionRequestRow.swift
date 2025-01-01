@@ -6,7 +6,7 @@ struct ConnectionRequestRow: View {
     @State private var isLoading = false
     
     var body: some View {
-        HStack {
+        HStack(spacing: 16) {
             VStack(alignment: .leading) {
                 Text("@\(request.fromUsername)")
                     .font(.headline)
@@ -18,19 +18,29 @@ struct ConnectionRequestRow: View {
             Spacer()
             
             if !isLoading {
-                HStack(spacing: 12) {
+                HStack(spacing: 8) {
+                    // Accept Button
                     Button {
                         handleRequest(accept: true)
                     } label: {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
+                        Text("Accept")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 72, height: 30)
+                            .background(Color.blue)
+                            .cornerRadius(6)
                     }
                     
+                    // Ignore Button
                     Button {
                         handleRequest(accept: false)
                     } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.red)
+                        Text("Ignore")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.primary)
+                            .frame(width: 72, height: 30)
+                            .background(Color(.systemGray5))
+                            .cornerRadius(6)
                     }
                 }
             } else {

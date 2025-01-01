@@ -53,11 +53,116 @@ struct UserProfileView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showUnfollowAlert) {
+            ZStack {
+                // Background blur
+                Color.black.opacity(0.2)
+                    .ignoresSafeArea()
+                
+                // Content
+                VStack(spacing: 0) {
+                    // Header with icon
+                    VStack(spacing: 16) {
+                        Circle()
+                            .fill(Color.red.opacity(0.1))
+                            .frame(width: 80, height: 80)
+                            .overlay(
+                                Image(systemName: "person.badge.minus")
+                                    .font(.system(size: 32, weight: .medium))
+                                    .foregroundColor(.red)
+                            )
+                        
+                        VStack(spacing: 8) {
+                            Text("Remove Connection")
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundColor(.primary)
+                            
+                            Text("Are you sure you want to remove")
+                                .font(.system(size: 16))
+                                .foregroundColor(.secondary)
+                            Text("@\(user.username)")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.blue)
+                            Text("from your connections?")
+                                .font(.system(size: 16))
+                                .foregroundColor(.secondary)
+                        }
+                        .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 32)
+                    .padding(.bottom, 24)
+                    
+                    // Divider
+                    Divider()
+                        .padding(.horizontal, 24)
+                    
+                    // Warning message
+                    Text("You'll need to send a new request to reconnect.")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 16)
+                    
+                    // Divider
+                    Divider()
+                        .padding(.horizontal, 24)
+                    
+                    // Buttons
+                    VStack(spacing: 12) {
+                        // Remove button
+                        Button {
+                            Task {
+                                do {
+                                    try await connectionService.removeConnection(with: user.id)
+                                    await MainActor.run {
+                                        isConnected = false
+                                        hasRequestPending = false
+                                        hasIncomingRequest = false
+                                        showUnfollowAlert = false
+                                    }
+                                } catch {
+                                    print("Failed to remove connection: \(error.localizedDescription)")
+                                }
+                            }
+                        } label: {
+                            Text("Remove Connection")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(Color.red)
+                                .cornerRadius(12)
+                        }
+                        
+                        // Cancel button
+                        Button {
+                            showUnfollowAlert = false
+                        } label: {
+                            Text("Keep Connection")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(.blue)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(Color.blue.opacity(0.1))
+                                .cornerRadius(12)
+                        }
+                    }
+                    .padding(24)
+                }
+                .background(Color(uiColor: .systemBackground))
+                .cornerRadius(24)
+                .padding(.horizontal, 20)
+            }
+            .interactiveDismissDisabled()
+        }
         .confirmationDialog(
             "Disconnect from @\(user.username)?",
             isPresented: $showDisconnectConfirmation,
             titleVisibility: .visible
         ) {
+            Button("Cancel", role: .cancel) { }
             Button("Disconnect", role: .destructive) {
                 Task {
                     do {
@@ -73,7 +178,6 @@ struct UserProfileView: View {
                     }
                 }
             }
-            Button("Cancel", role: .cancel) { }
         } message: {
             Text("You will need to send a new connection request to reconnect.")
         }
@@ -85,25 +189,6 @@ struct UserProfileView: View {
             response: CardDimensions.transitionDuration,
             dampingFraction: CardDimensions.springDamping
         ), value: user.id)
-        .alert("Remove Connection?", isPresented: $showUnfollowAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Remove", role: .destructive) {
-                Task {
-                    do {
-                        try await connectionService.removeConnection(with: user.id)
-                        await MainActor.run {
-                            isConnected = false
-                            hasRequestPending = false
-                            hasIncomingRequest = false
-                        }
-                    } catch {
-                        print("Failed to remove connection: \(error.localizedDescription)")
-                    }
-                }
-            }
-        } message: {
-            Text("Are you sure you want to remove @\(user.username) from your connections?")
-        }
         .sheet(isPresented: $showQRCode) {
             NavigationView {
                 ProfileQRCodeView(username: user.username)

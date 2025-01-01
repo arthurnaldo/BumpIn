@@ -138,28 +138,137 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button(role: .destructive) {
-                            showSignOutAlert = true
-                        } label: {
-                            Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
-                        }
+                    Button {
+                        showSettingsMenu = true
                     } label: {
                         Image(systemName: "gearshape.fill")
+                            .font(.system(size: 20))
                             .foregroundColor(.primary)
+                    }
+                    .sheet(isPresented: $showSettingsMenu) {
+                        NavigationView {
+                            List {
+                                Section {
+                                    Button(action: {
+                                        showSettingsMenu = false
+                                        showSignOutAlert = true
+                                    }) {
+                                        HStack(spacing: 12) {
+                                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                                                .font(.system(size: 18))
+                                                .foregroundColor(.red)
+                                                .frame(width: 28)
+                                            
+                                            Text("Sign Out")
+                                                .foregroundColor(.red)
+                                        }
+                                    }
+                                } header: {
+                                    Text("Account")
+                                }
+                            }
+                            .navigationTitle("Settings")
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                ToolbarItem(placement: .navigationBarTrailing) {
+                                    Button("Done") {
+                                        showSettingsMenu = false
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
-            .alert("Sign Out", isPresented: $showSignOutAlert) {
-                Button("Cancel", role: .cancel) { }
-                Button("Sign Out", role: .destructive) {
-                    do {
-                        try authService.signOut()
-                    } catch {
-                        showError = true
-                        errorMessage = error.localizedDescription
+            .sheet(isPresented: $showSignOutAlert) {
+                ZStack {
+                    // Background blur
+                    Color.black.opacity(0.2)
+                        .ignoresSafeArea()
+                    
+                    // Content
+                    VStack(spacing: 0) {
+                        // Header with icon
+                        VStack(spacing: 16) {
+                            ZStack {
+                                // Background circles for depth
+                                Circle()
+                                    .fill(Color.red.opacity(0.1))
+                                    .frame(width: 100, height: 100)
+                                Circle()
+                                    .fill(Color.red.opacity(0.15))
+                                    .frame(width: 80, height: 80)
+                                
+                                // Icon
+                                Image(systemName: "rectangle.portrait.and.arrow.right")
+                                    .font(.system(size: 32, weight: .medium))
+                                    .foregroundColor(.red)
+                            }
+                            
+                            VStack(spacing: 8) {
+                                Text("Sign Out")
+                                    .font(.system(size: 24, weight: .bold))
+                                    .foregroundColor(.primary)
+                                
+                                if let username = userService.currentUser?.username {
+                                    Text("Are you sure you want to sign out")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(.secondary)
+                                    Text("@\(username)?")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                            .multilineTextAlignment(.center)
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.top, 32)
+                        .padding(.bottom, 24)
+                        
+                        // Divider
+                        Divider()
+                            .padding(.horizontal, 24)
+                        
+                        // Buttons
+                        VStack(spacing: 12) {
+                            // Sign Out button
+                            Button {
+                                do {
+                                    try authService.signOut()
+                                } catch {
+                                    showError = true
+                                    errorMessage = error.localizedDescription
+                                }
+                            } label: {
+                                Text("Sign Out")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 50)
+                                    .background(Color.red)
+                                    .cornerRadius(12)
+                            }
+                            
+                            // Cancel button
+                            Button {
+                                showSignOutAlert = false
+                            } label: {
+                                Text("Cancel")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundColor(.blue)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 50)
+                                    .background(Color.blue.opacity(0.1))
+                                    .cornerRadius(12)
+                            }
+                        }
+                        .padding(24)
                     }
+                    .background(Color(uiColor: .systemBackground))
+                    .cornerRadius(24)
+                    .padding(.horizontal, 20)
                 }
+                .interactiveDismissDisabled()
             }
         }
         .task {
