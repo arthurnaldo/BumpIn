@@ -1,6 +1,9 @@
 import SwiftUI
 import FirebaseAuth
 
+// Import AICardService
+import Foundation
+
 enum PersonRole: String, CaseIterable {
     case student = "Student"
     case professional = "Professional"
@@ -62,6 +65,8 @@ struct CreateCardView: View {
     @State private var showEmoticonPicker = false
     @State private var showEmojiPicker = false
     @Binding var selectedTab: Int
+    @State private var styleDescription = ""
+    @StateObject private var aiService = AICardService()
     
     init(cardService: BusinessCardService, selectedTab: Binding<Int>) {
         self._cardService = ObservedObject(wrappedValue: cardService)
@@ -242,6 +247,37 @@ struct CreateCardView: View {
     
     private var cardDesignSection: some View {
         FormSection(title: "Card Design") {
+            // Add AI style input
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Describe your ideal card style")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                HStack {
+                    CustomTextField(
+                        icon: "wand.and.stars",
+                        placeholder: "E.g., Professional dark blue corporate style",
+                        characterLimit: 200,
+                        text: $styleDescription
+                    )
+                    
+                    if aiService.isProcessing {
+                        ProgressView()
+                            .padding(.horizontal, 8)
+                    } else {
+                        Button(action: generateStyle) {
+                            Image(systemName: "arrow.right.circle.fill")
+                                .foregroundColor(.blue)
+                                .font(.title2)
+                        }
+                        .padding(.horizontal, 8)
+                    }
+                }
+            }
+            .padding(.bottom, 10)
+            
+            Divider()
+            
             colorSchemeSelector
             
             Divider()
@@ -562,6 +598,27 @@ struct CreateCardView: View {
             showAlert = true
         }
         isLoading = false
+    }
+    
+    private func generateStyle() {
+        Task {
+            do {
+                let config = try await aiService.generateCardStyle(from: styleDescription)
+                await MainActor.run {
+                    withAnimation {
+                        businessCard.colorScheme = config.colorScheme.colors
+                        businessCard.fontStyle = config.fontStyle
+                        businessCard.layoutStyle = config.layoutStyle
+                        businessCard.backgroundStyle = config.backgroundStyle
+                        businessCard.showSymbols = config.showSymbols
+                        businessCard.isVertical = config.isVertical
+                    }
+                }
+            } catch {
+                print("Error generating style: \(error)")
+                // Handle error appropriately
+            }
+        }
     }
 }
 
