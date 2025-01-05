@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var showSettingsMenu = false
     @State private var preloadedImage: UIImage?
     @StateObject private var storageService = StorageService()
+    @State private var showDeleteAccountAlert = false
     
     var body: some View {
         NavigationView {
@@ -163,8 +164,39 @@ struct SettingsView: View {
                                                 .foregroundColor(.red)
                                         }
                                     }
+                                    
+                                    Button(action: {
+                                        showSettingsMenu = false
+                                        showDeleteAccountAlert = true
+                                    }) {
+                                        HStack(spacing: 12) {
+                                            Image(systemName: "person.crop.circle.badge.minus")
+                                                .font(.system(size: 18))
+                                                .foregroundColor(.red)
+                                                .frame(width: 28)
+                                            
+                                            Text("Delete Account")
+                                                .foregroundColor(.red)
+                                        }
+                                    }
                                 } header: {
                                     Text("Account")
+                                }
+                                
+                                Section {
+                                    Link(destination: URL(string: "mailto:support@bumpin.us")!) {
+                                        HStack(spacing: 12) {
+                                            Image(systemName: "envelope")
+                                                .font(.system(size: 18))
+                                                .foregroundColor(.blue)
+                                                .frame(width: 28)
+                                            
+                                            Text("Contact Support")
+                                                .foregroundColor(.primary)
+                                        }
+                                    }
+                                } header: {
+                                    Text("Support")
                                 }
                             }
                             .navigationTitle("Settings")
