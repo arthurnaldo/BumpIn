@@ -302,6 +302,104 @@ struct SettingsView: View {
                 }
                 .interactiveDismissDisabled()
             }
+            .sheet(isPresented: $showDeleteAccountAlert) {
+                ZStack {
+                    // Background blur
+                    Color.black.opacity(0.2)
+                        .ignoresSafeArea()
+                    
+                    // Content
+                    VStack(spacing: 0) {
+                        // Header with icon
+                        VStack(spacing: 16) {
+                            ZStack {
+                                // Background circles for depth
+                                Circle()
+                                    .fill(Color.red.opacity(0.1))
+                                    .frame(width: 100, height: 100)
+                                Circle()
+                                    .fill(Color.red.opacity(0.15))
+                                    .frame(width: 80, height: 80)
+                                
+                                // Icon
+                                Image(systemName: "person.crop.circle.badge.minus")
+                                    .font(.system(size: 32, weight: .medium))
+                                    .foregroundColor(.red)
+                            }
+                            
+                            VStack(spacing: 8) {
+                                Text("Delete Account")
+                                    .font(.system(size: 24, weight: .bold))
+                                    .foregroundColor(.primary)
+                                
+                                Text("Your account deletion request will be processed in 48 hours. During this time, you can cancel the deletion by logging back in.")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                                
+                                if let username = userService.currentUser?.username {
+                                    Text("@\(username)")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.blue)
+                                        .padding(.top, 4)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.top, 32)
+                        .padding(.bottom, 24)
+                        
+                        // Divider
+                        Divider()
+                            .padding(.horizontal, 24)
+                        
+                        // Buttons
+                        VStack(spacing: 12) {
+                            // Delete button
+                            Button {
+                                Task {
+                                    do {
+                                        // Schedule deletion instead of immediate deletion
+                                        try await userService.scheduleDeletion()
+                                        showDeleteAccountAlert = false
+                                        // Sign out the user after scheduling deletion
+                                        try authService.signOut()
+                                    } catch {
+                                        showError = true
+                                        errorMessage = error.localizedDescription
+                                    }
+                                }
+                            } label: {
+                                Text("Request Account Deletion")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 50)
+                                    .background(Color.red)
+                                    .cornerRadius(12)
+                            }
+                            
+                            // Cancel button
+                            Button {
+                                showDeleteAccountAlert = false
+                            } label: {
+                                Text("Cancel")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundColor(.blue)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 50)
+                                    .background(Color.blue.opacity(0.1))
+                                    .cornerRadius(12)
+                            }
+                        }
+                        .padding(24)
+                    }
+                    .background(Color(uiColor: .systemBackground))
+                    .cornerRadius(24)
+                    .padding(.horizontal, 20)
+                }
+                .interactiveDismissDisabled()
+            }
         }
         .task {
             await loadData()

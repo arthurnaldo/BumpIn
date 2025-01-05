@@ -463,4 +463,18 @@ class UserService: ObservableObject {
             try await fetchCurrentUser()
         }
     }
+    
+    func scheduleDeletion() async throws {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            throw AuthError.userNotFound
+        }
+        
+        let db = Firestore.firestore()
+        try await db.collection("deletionRequests").document(userId).setData([
+            "userId": userId,
+            "requestedAt": Timestamp(date: Date()),
+            "scheduledDeletionDate": Timestamp(date: Date().addingTimeInterval(48 * 60 * 60)), // 48 hours from now
+            "status": "pending"
+        ])
+    }
 } 
