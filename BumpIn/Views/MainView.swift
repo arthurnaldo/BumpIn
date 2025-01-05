@@ -376,7 +376,7 @@ struct MainView: View {
                                 ActionButton(
                                     icon: "creditcard.fill",
                                     title: "Get Physical Card",
-                                    subtitle: "Premium NFC Cards",
+                                    subtitle: "Premium Cards",
                                     color: Color(red: 0.3, green: 0.5, blue: 0.9)
                                 ) {
                                     if let url = URL(string: "https://github.com") {
