@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseAuth
+import Foundation
 
 class AuthenticationService: ObservableObject {
     @Published var user: FirebaseAuth.User?
@@ -24,5 +25,14 @@ class AuthenticationService: ObservableObject {
             await CacheManager.shared.clearCache()
         }
         try Auth.auth().signOut()
+    }
+    
+    func deleteAccount() async throws {
+        guard let user = Auth.auth().currentUser else {
+            throw AuthError.userNotFound
+        }
+        
+        try await user.delete()
+        self.user = nil
     }
 } 
